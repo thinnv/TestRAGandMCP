@@ -1,0 +1,6 @@
+@ContractProcessingSystem.EmbeddingService_HostAddress = http://localhost:5212
+
+GET {{ContractProcessingSystem.EmbeddingService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

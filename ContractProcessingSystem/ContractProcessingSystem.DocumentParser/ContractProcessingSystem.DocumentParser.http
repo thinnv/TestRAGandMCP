@@ -1,0 +1,6 @@
+@ContractProcessingSystem.DocumentParser_HostAddress = http://localhost:5160
+
+GET {{ContractProcessingSystem.DocumentParser_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

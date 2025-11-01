@@ -1,0 +1,6 @@
+@ContractProcessingSystem.AIAgent_HostAddress = http://localhost:5227
+
+GET {{ContractProcessingSystem.AIAgent_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,6 @@
+@ContractProcessingSystem.VectorService_HostAddress = http://localhost:5268
+
+GET {{ContractProcessingSystem.VectorService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

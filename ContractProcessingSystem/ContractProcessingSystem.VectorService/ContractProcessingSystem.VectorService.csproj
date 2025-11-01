@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="7.2.0" />
+    <PackageReference Include="Milvus.Client" Version="2.3.0-preview.1" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="9.0.0" />
+    <PackageReference Include="System.Numerics.Tensors" Version="9.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ContractProcessingSystem.ServiceDefaults\ContractProcessingSystem.ServiceDefaults.csproj" />
+    <ProjectReference Include="..\ContractProcessingSystem.Shared\ContractProcessingSystem.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
