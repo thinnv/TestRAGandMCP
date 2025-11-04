@@ -6,10 +6,16 @@ public record ContractDocument(
     string ContentType,
     long FileSize,
     DateTime UploadedAt,
+    DateTime LastModified,
     string UploadedBy,
     ContractStatus Status,
+    string? BlobPath = null,
     ContractMetadata? Metadata = null
-);
+)
+{
+    // Alias for compatibility
+    public long FileSizeBytes => FileSize;
+};
 
 public record ContractMetadata(
     string? Title,

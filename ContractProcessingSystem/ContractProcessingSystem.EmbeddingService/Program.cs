@@ -1,6 +1,7 @@
 using ContractProcessingSystem.EmbeddingService.Services;
 using ContractProcessingSystem.Shared.Extensions;
 using Microsoft.SemanticKernel;
+using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -41,7 +42,13 @@ builder.Services.AddSingleton<Kernel>(provider =>
 
 // Register application services  
 builder.Services.AddScoped<IEmbeddingService, ContractProcessingSystem.EmbeddingService.Services.EmbeddingService>();
+builder.Services.AddScoped<ContractProcessingSystem.EmbeddingService.Services.EmbeddingService>();
 builder.Services.AddScoped<EmbeddingBatchProcessor>();
+
+// Configure MCP Server using official ModelContextProtocol.AspNetCore package
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithToolsFromAssembly();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -70,5 +77,8 @@ app.MapControllers();
 
 // Map Aspire default endpoints
 app.MapDefaultEndpoints();
+
+// Map MCP endpoint using official package
+app.MapMcp();
 
 app.Run();

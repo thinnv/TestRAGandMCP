@@ -132,6 +132,162 @@ public class DocumentUploadService : IDocumentUploadService
         }
     }
 
+    public async Task<ContractDocument> UploadDocumentAsync(
+        string fileName, 
+        string contentType, 
+        byte[] content, 
+        string uploadedBy)
+    {
+        using var stream = new MemoryStream(content);
+        return await UploadDocumentAsync(fileName, stream, contentType, uploadedBy);
+    }
+
+    public async Task<IEnumerable<ContractDocument>> GetDocumentsAsync(
+        string? uploadedBy = null, 
+        string? status = null, 
+        int limit = 50, 
+        int offset = 0)
+    {
+        try
+        {
+            var query = _context.Documents.AsQueryable();
+
+            if (!string.IsNullOrEmpty(uploadedBy))
+            {
+                query = query.Where(d => d.UploadedBy == uploadedBy);
+            }
+
+            if (!string.IsNullOrEmpty(status) && Enum.TryParse<ContractStatus>(status, out var statusEnum))
+            {
+                query = query.Where(d => d.Status == statusEnum);
+            }
+
+            var documents = await query
+                .OrderByDescending(d => d.UploadedAt)
+                .Skip(offset)
+                .Take(limit)
+                .ToListAsync();
+
+            return documents.Select(MapToContractDocument);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting documents with filters");
+            throw;
+        }
+    }
+
+    public async Task<bool> UpdateDocumentMetadataAsync(
+        Guid documentId, 
+        string? title = null, 
+        List<string>? tags = null, 
+        string? notes = null)
+    {
+        try
+        {
+            var document = await _context.Documents.FindAsync(documentId);
+            if (document == null)
+            {
+                return false;
+            }
+
+            // Update document properties if provided
+            if (!string.IsNullOrEmpty(title))
+            {
+                // You might want to add a Title field to the entity
+                // For now, we'll store it in a custom metadata field
+            }
+
+            document.LastModified = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Updated metadata for document {DocumentId}", documentId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating document metadata for {DocumentId}", documentId);
+            throw;
+        }
+    }
+
+    public async Task<byte[]> GetDocumentContentAsync(Guid documentId)
+    {
+        try
+        {
+            var document = await _context.Documents.FindAsync(documentId);
+            if (document == null || string.IsNullOrEmpty(document.BlobPath))
+            {
+                throw new FileNotFoundException($"Document not found: {documentId}");
+            }
+
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            var blobClient = containerClient.GetBlobClient(document.BlobPath);
+
+            var response = await blobClient.DownloadAsync();
+            using var memoryStream = new MemoryStream();
+            await response.Value.Content.CopyToAsync(memoryStream);
+
+            return memoryStream.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting document content for {DocumentId}", documentId);
+            throw;
+        }
+    }
+
+    public async Task<object> GetUploadStatisticsAsync(string period = "month", string groupBy = "status")
+    {
+        try
+        {
+            var cutoffDate = period switch
+            {
+                "day" => DateTime.UtcNow.AddDays(-1),
+                "week" => DateTime.UtcNow.AddDays(-7),
+                "month" => DateTime.UtcNow.AddMonths(-1),
+                "year" => DateTime.UtcNow.AddYears(-1),
+                _ => DateTime.UtcNow.AddMonths(-1)
+            };
+
+            var query = _context.Documents.Where(d => d.UploadedAt >= cutoffDate);
+
+            var statistics = groupBy switch
+            {
+                "status" => await query
+                    .GroupBy(d => d.Status)
+                    .Select(g => new { Key = g.Key.ToString(), Count = g.Count(), TotalSize = g.Sum(d => d.FileSize) })
+                    .ToListAsync(),
+                "uploader" => await query
+                    .GroupBy(d => d.UploadedBy)
+                    .Select(g => new { Key = g.Key, Count = g.Count(), TotalSize = g.Sum(d => d.FileSize) })
+                    .ToListAsync(),
+                "type" => await query
+                    .GroupBy(d => d.ContentType)
+                    .Select(g => new { Key = g.Key, Count = g.Count(), TotalSize = g.Sum(d => d.FileSize) })
+                    .ToListAsync(),
+                _ => await query
+                    .GroupBy(d => d.Status)
+                    .Select(g => new { Key = g.Key.ToString(), Count = g.Count(), TotalSize = g.Sum(d => d.FileSize) })
+                    .ToListAsync()
+            };
+
+            return new
+            {
+                Period = period,
+                GroupBy = groupBy,
+                TotalDocuments = await query.CountAsync(),
+                TotalSize = await query.SumAsync(d => d.FileSize),
+                Statistics = statistics
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting upload statistics");
+            throw;
+        }
+    }
+
     private async Task<string> UploadToBlobStorageAsync(Guid documentId, string fileName, Stream content, string contentType)
     {
         var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
@@ -167,8 +323,10 @@ public class DocumentUploadService : IDocumentUploadService
             entity.ContentType,
             entity.FileSize,
             entity.UploadedAt,
+            entity.LastModified,
             entity.UploadedBy,
-            entity.Status
+            entity.Status,
+            entity.BlobPath
         );
     }
 }

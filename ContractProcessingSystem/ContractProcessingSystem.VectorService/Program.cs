@@ -1,5 +1,6 @@
 using ContractProcessingSystem.VectorService.Services;
 using Milvus.Client;
+using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +25,12 @@ builder.Services.AddSingleton<MilvusClient>(provider =>
 
 // Register application services
 builder.Services.AddScoped<IVectorService, MilvusVectorService>();
+builder.Services.AddScoped<MilvusVectorService>();
+
+// Configure MCP Server using official ModelContextProtocol.AspNetCore package
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithToolsFromAssembly();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -52,5 +59,8 @@ app.MapControllers();
 
 // Map Aspire default endpoints
 app.MapDefaultEndpoints();
+
+// Map MCP endpoint using official package
+app.MapMcp();
 
 app.Run();

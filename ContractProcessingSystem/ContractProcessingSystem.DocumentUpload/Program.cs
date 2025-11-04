@@ -1,5 +1,6 @@
 using ContractProcessingSystem.DocumentUpload.Data;
 using ContractProcessingSystem.DocumentUpload.Services;
+using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,6 +20,12 @@ builder.Services.AddSwaggerGen();
 
 // Register application services
 builder.Services.AddScoped<IDocumentUploadService, DocumentUploadService>();
+builder.Services.AddScoped<DocumentUploadService>();
+
+// Configure MCP Server using official ModelContextProtocol.AspNetCore package
+builder.Services.AddMcpServer()
+    .WithHttpTransport()
+    .WithToolsFromAssembly();
 
 // Add CORS
 builder.Services.AddCors(options =>
@@ -47,6 +54,9 @@ app.MapControllers();
 
 // Map Aspire default endpoints
 app.MapDefaultEndpoints();
+
+// Map MCP endpoint using official package
+app.MapMcp();
 
 // Ensure database is created
 using (var scope = app.Services.CreateScope())

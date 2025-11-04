@@ -8,12 +8,36 @@ public interface IDocumentUploadService
         string contentType, 
         string uploadedBy);
     
+    // Overload for MCP server with byte array
+    Task<ContractDocument> UploadDocumentAsync(
+        string fileName, 
+        string contentType, 
+        byte[] content, 
+        string uploadedBy);
+    
     Task<ContractDocument?> GetDocumentAsync(Guid documentId);
     Task<IEnumerable<ContractDocument>> GetDocumentsAsync(
         int page = 1, 
         int pageSize = 20);
     
+    // Extended methods for MCP server
+    Task<IEnumerable<ContractDocument>> GetDocumentsAsync(
+        string? uploadedBy = null, 
+        string? status = null, 
+        int limit = 50, 
+        int offset = 0);
+    
     Task<bool> DeleteDocumentAsync(Guid documentId);
+    
+    Task<bool> UpdateDocumentMetadataAsync(
+        Guid documentId, 
+        string? title = null, 
+        List<string>? tags = null, 
+        string? notes = null);
+    
+    Task<byte[]> GetDocumentContentAsync(Guid documentId);
+    
+    Task<object> GetUploadStatisticsAsync(string period = "month", string groupBy = "status");
 }
 
 public interface IDocumentParsingService
