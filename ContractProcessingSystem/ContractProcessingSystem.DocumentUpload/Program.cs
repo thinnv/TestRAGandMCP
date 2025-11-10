@@ -1,5 +1,6 @@
 using ContractProcessingSystem.DocumentUpload.Data;
 using ContractProcessingSystem.DocumentUpload.Services;
+using ContractProcessingSystem.DocumentUpload.MCPTools;
 using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,7 +9,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add Azure Blob Storage
-builder.AddAzureBlobClient("storage");
+builder.AddAzureBlobClient("blobs");
 
 // Add SQL Server
 builder.AddSqlServerDbContext<DocumentContext>("database");
@@ -22,10 +23,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddScoped<IDocumentUploadService, DocumentUploadService>();
 builder.Services.AddScoped<DocumentUploadService>();
 
+// Register MCP tools
+builder.Services.AddScoped<DocumentUploadTools>();
+
 // Configure MCP Server using official ModelContextProtocol.AspNetCore package
 builder.Services.AddMcpServer()
     .WithHttpTransport()
-    .WithToolsFromAssembly();
+    .WithToolsFromAssembly(typeof(DocumentUploadTools).Assembly);
 
 // Add CORS
 builder.Services.AddCors(options =>

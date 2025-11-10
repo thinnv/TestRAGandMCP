@@ -1,0 +1,316 @@
+STRATEGIC PARTNERSHIP AGREEMENT
+
+This Strategic Partnership Agreement ("Agreement") is entered into as of June 1, 2025, by and between:
+
+PARTY A: GreenEnergy Solutions Corporation
+Address: 1500 Renewable Way, Denver, CO 80202
+Represented by: Amanda Foster, Chief Executive Officer
+Email: a.foster@greenenergysolutions.com
+("GreenEnergy")
+
+PARTY B: SmartGrid Technologies Inc.
+Address: 2200 Innovation Parkway, Austin, TX 78701
+Represented by: James Park, President
+Email: j.park@smartgridtech.com
+("SmartGrid")
+
+Collectively referred to as "Partners" or individually as "Partner."
+
+RECITALS
+
+WHEREAS, GreenEnergy is a leading provider of residential and commercial solar panel systems with over 50,000 installations across North America;
+
+WHEREAS, SmartGrid develops advanced energy management systems and IoT devices for optimizing renewable energy consumption and storage;
+
+WHEREAS, the Partners desire to collaborate to offer integrated solar-plus-storage solutions with intelligent energy management to customers;
+
+WHEREAS, this partnership will combine GreenEnergy's solar installation expertise with SmartGrid's energy management technology to create superior customer value;
+
+NOW, THEREFORE, in consideration of the mutual covenants and promises herein, the Partners agree as follows:
+
+1. PARTNERSHIP PURPOSE AND OBJECTIVES
+
+1.1 Joint Mission: Accelerate adoption of integrated renewable energy and intelligent energy management systems for residential and commercial customers.
+
+1.2 Specific Objectives:
+(a) Develop bundled solar-plus-storage packages with SmartGrid's energy management system
+(b) Create joint go-to-market strategy targeting existing and new customers
+(c) Establish integrated sales and installation processes
+(d) Develop co-branded marketing materials and campaigns
+(e) Share customer insights and market intelligence
+(f) Pursue joint bids for large commercial and utility-scale projects
+(g) Collaborate on product development and feature roadmaps
+
+1.3 Target Metrics (Year 1):
+- 5,000 integrated system installations
+- $75 million combined revenue from partnership
+- 90% customer satisfaction rating
+- 15% market share in smart solar segment
+
+2. SCOPE OF COLLABORATION
+
+2.1 Product Integration:
+- SmartGrid to develop solar inverter integration with its energy management platform
+- GreenEnergy to certify SmartGrid devices for all solar installations
+- Joint testing and quality assurance protocols
+- Unified mobile app experience for customers
+- Interoperable warranty and support systems
+
+2.2 Sales and Marketing:
+- Joint sales training for both companies' teams
+- Co-branded marketing campaigns (60/40 cost split: GreenEnergy/SmartGrid)
+- Shared trade show presence at 6+ industry events annually
+- Cross-referrals of leads and opportunities
+- Joint customer case studies and testimonials
+- Coordinated social media and content marketing
+
+2.3 Technical Collaboration:
+- Quarterly product roadmap alignment meetings
+- Shared customer feedback loops
+- Joint participation in industry standards bodies
+- Collaborative R&D on next-generation features
+- Integration support and technical documentation
+
+3. ROLES AND RESPONSIBILITIES
+
+3.1 GreenEnergy Responsibilities:
+- Solar panel procurement, installation, and commissioning
+- Permitting and interconnection processes
+- Electrical inspection coordination
+- Primary customer relationship for solar systems
+- Installation of SmartGrid devices during solar deployment
+- First-line customer support for solar equipment
+- Warranty service for solar components
+- Customer financing options and programs
+
+3.2 SmartGrid Responsibilities:
+- Energy management hardware and software
+- Mobile app and cloud platform
+- Integration with utility demand response programs
+- Software updates and feature enhancements
+- Second-line support for energy management issues
+- Data analytics and energy optimization algorithms
+- Battery storage system integration
+- API access for GreenEnergy systems
+
+3.3 Joint Responsibilities:
+- Integrated system design and sizing
+- Customer education and training
+- Quality assurance and testing
+- Marketing collateral development
+- Sales process and pricing structure
+- Customer support escalation procedures
+- Performance monitoring and reporting
+
+4. FINANCIAL TERMS
+
+4.1 Revenue Sharing Model:
+For bundled installations:
+- GreenEnergy receives: 65% of total contract value (solar equipment and installation)
+- SmartGrid receives: 35% of total contract value (energy management system)
+
+4.2 Referral Fees:
+- GreenEnergy pays SmartGrid 12% for customer referrals (solar-only installations)
+- SmartGrid pays GreenEnergy 12% for customer referrals (retrofit energy management)
+
+4.3 Support Cost Sharing:
+- Each Partner bears own costs for first-line support
+- Joint escalation support costs split 50/50
+- Warranty claims handled by respective manufacturers
+
+4.4 Marketing Investment:
+Year 1 Joint Marketing Budget: $3,000,000
+- GreenEnergy contribution: $1,800,000 (60%)
+- SmartGrid contribution: $1,200,000 (40%)
+- Quarterly budget reviews and adjustments
+- Marketing committee approves expenditures over $50,000
+
+4.5 Volume Incentives:
+Quarterly installation targets with bonus structure:
+- 1,000-1,499 units: 2% bonus to both Partners
+- 1,500-1,999 units: 4% bonus to both Partners
+- 2,000+ units: 6% bonus to both Partners
+Bonuses paid quarterly based on achieved volumes.
+
+5. INTELLECTUAL PROPERTY
+
+5.1 Pre-existing IP: Each Partner retains ownership of its pre-existing intellectual property.
+
+5.2 Joint IP: Any intellectual property created jointly shall be co-owned by both Partners with equal rights to use, license, and commercialize.
+
+5.3 Licensing:
+- GreenEnergy grants SmartGrid non-exclusive license to use its branding in joint materials
+- SmartGrid grants GreenEnergy non-exclusive license to use its software and APIs for integrated installations
+- No licensing fees for partnership-related uses
+
+5.4 Improvements: Improvements to each Partner's existing IP remain the property of that Partner.
+
+5.5 Trademarks: Neither Partner may register trademarks confusingly similar to the other's marks.
+
+6. CONFIDENTIALITY AND DATA SHARING
+
+6.1 Confidential Information:
+Both Partners agree to protect each other's confidential information including:
+- Proprietary technology and trade secrets
+- Customer lists and contact information
+- Pricing strategies and cost structures
+- Business plans and strategies
+- Financial information
+- Product roadmaps
+
+6.2 Standard of Care: Reasonable care, but no less than protection afforded to own confidential information.
+
+6.3 Customer Data:
+- Joint customers: Both Partners have access to relevant customer data
+- Data use limited to partnership purposes and legal compliance
+- Compliance with all privacy laws (GDPR, CCPA, etc.)
+- Shared data security protocols and incident response
+- Customer consent obtained for data sharing
+
+6.4 Survival: Confidentiality obligations survive termination for 5 years.
+
+7. GOVERNANCE
+
+7.1 Partnership Steering Committee:
+Composition: 3 representatives from each Partner
+Responsibilities:
+- Strategic direction and goal setting
+- Budget approval and resource allocation
+- Dispute resolution
+- Performance review
+- Major partnership decisions
+
+Meetings: Quarterly (minimum), with special meetings as needed
+Decision Making: Consensus preferred; escalation process for deadlocks
+
+7.2 Operational Working Groups:
+- Sales and Marketing Committee
+- Product Integration Committee
+- Customer Success Committee
+- Finance Committee
+
+7.3 Executive Sponsors:
+GreenEnergy: Amanda Foster, CEO
+SmartGrid: James Park, President
+Escalation point for unresolved issues
+
+8. TERM AND TERMINATION
+
+8.1 Initial Term: 3 years from June 1, 2025
+
+8.2 Renewal: Automatic renewal for successive 1-year terms unless either party provides 180 days written notice of non-renewal.
+
+8.3 Termination for Convenience: Either party may terminate with 180 days written notice after initial term.
+
+8.4 Termination for Cause: Either party may terminate immediately if:
+- Material breach uncured after 60 days written notice
+- Bankruptcy, insolvency, or receivership
+- Violation of exclusivity provisions (if applicable)
+- Breach of confidentiality
+- Fraud or misrepresentation
+
+8.5 Wind-Down Period: 90-day wind-down to complete pending customer commitments.
+
+8.6 Effect of Termination:
+- Fulfill existing customer obligations
+- Cease new joint sales efforts
+- Continue support for installed base (minimum 2 years)
+- Return or destroy confidential information
+- Final financial settlement within 60 days
+
+9. EXCLUSIVITY AND NON-COMPETITION
+
+9.1 Non-Exclusive Partnership: This is a non-exclusive partnership. Each Partner may:
+- Pursue other partnerships in complementary areas
+- Develop competitive products
+- Serve customers independently
+
+9.2 Competitive Activity Notification: Partners agree to notify each other of strategic partnerships with direct competitors at least 30 days in advance.
+
+9.3 Customer Protection: Neither Partner shall solicit the other's employees or contractors during the term and for 1 year following termination.
+
+10. WARRANTIES AND REPRESENTATIONS
+
+10.1 Each Partner Warrants:
+- Legal authority to enter this Agreement
+- No conflicting agreements or obligations
+- Ownership or right to use all contributed IP
+- Compliance with all applicable laws and regulations
+- No pending or threatened litigation affecting ability to perform
+
+10.2 Product Warranties:
+- Each Partner provides standard warranties for its products
+- Warranty terms clearly communicated to customers
+- Warranty service obligations defined in operations manual
+
+11. LIABILITY AND INDEMNIFICATION
+
+11.1 Liability Limitation: Except for breaches of confidentiality or IP infringement, neither Partner shall be liable for indirect, consequential, or punitive damages.
+
+11.2 Liability Cap: Total liability for any claim shall not exceed the fees received by the liable party in the 12 months preceding the claim.
+
+11.3 Mutual Indemnification: Each Partner shall indemnify the other against third-party claims arising from:
+- Its products or services
+- Its negligence or willful misconduct
+- Breach of this Agreement
+- Violation of laws or regulations
+- Infringement of third-party IP rights
+
+11.4 Insurance: Each Partner shall maintain:
+- Commercial General Liability: $5,000,000
+- Professional Liability: $5,000,000
+- Product Liability: $5,000,000
+- Cyber Liability: $3,000,000
+
+12. PERFORMANCE METRICS AND REPORTING
+
+12.1 Key Performance Indicators:
+- Monthly installation volumes
+- Customer satisfaction scores (NPS)
+- Revenue generated through partnership
+- Lead conversion rates
+- Support ticket resolution times
+- Product defect rates
+- Customer retention rates
+
+12.2 Reporting: Monthly dashboard shared by 10th of following month.
+
+12.3 Quarterly Business Reviews: In-depth performance analysis and strategy adjustments.
+
+13. GENERAL PROVISIONS
+
+13.1 Governing Law: State of Colorado
+
+13.2 Dispute Resolution:
+- Good faith negotiation (30 days)
+- Mediation (30 days)
+- Binding arbitration under AAA rules
+
+13.3 Entire Agreement: This Agreement supersedes all prior agreements and understandings.
+
+13.4 Amendment: Must be in writing signed by authorized representatives of both Partners.
+
+13.5 Force Majeure: Neither party liable for delays due to events beyond reasonable control.
+
+13.6 Assignment: Neither party may assign without prior written consent, except to successor entity in merger or acquisition.
+
+13.7 Notices: Written notices to addresses above, effective upon email confirmation or 3 days after mailing.
+
+13.8 Independent Contractors: Partners are independent contractors. This Agreement does not create joint venture, partnership, or agency relationship.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.
+
+GREENENERGY SOLUTIONS CORPORATION
+
+Signature: _________________________
+Name: Amanda Foster
+Title: Chief Executive Officer
+Date: June 1, 2025
+
+
+SMARTGRID TECHNOLOGIES INC.
+
+Signature: _________________________
+Name: James Park
+Title: President
+Date: June 1, 2025

@@ -1,0 +1,362 @@
+ASSET PURCHASE AGREEMENT
+
+This Asset Purchase Agreement ("Agreement") is made and entered into as of July 15, 2025, by and between:
+
+SELLER: MobileTech Accessories Inc.
+Address: 8900 Commerce Street, Los Angeles, CA 90001
+Represented by: Kevin Rodriguez, Chief Executive Officer
+Email: k.rodriguez@mobiletechaccessories.com
+("Seller")
+
+BUYER: GlobalElectronics Distribution LLC
+Address: 5000 Distributor Plaza, Dallas, TX 75201
+Represented by: Lisa Chen, President
+Email: l.chen@globalelectronics.com
+("Buyer")
+
+RECITALS
+
+WHEREAS, Seller is engaged in the business of designing, manufacturing, and distributing mobile device accessories including phone cases, chargers, screen protectors, and related products ("Business");
+
+WHEREAS, Seller desires to sell, and Buyer desires to purchase, substantially all of the assets of the Business on the terms and conditions set forth herein;
+
+WHEREAS, Buyer intends to continue operating the Business and serving Seller's existing customer base;
+
+NOW, THEREFORE, in consideration of the mutual covenants and agreements contained herein, the parties agree as follows:
+
+1. PURCHASE AND SALE OF ASSETS
+
+1.1 Purchased Assets
+Subject to the terms and conditions of this Agreement, Seller agrees to sell, transfer, assign, convey, and deliver to Buyer, and Buyer agrees to purchase from Seller, free and clear of all liens and encumbrances, all of Seller's right, title, and interest in the following assets (collectively, "Purchased Assets"):
+
+(a) Inventory:
+- Finished goods inventory (approximately 500,000 units)
+- Raw materials and components
+- Work-in-progress inventory
+- Packaging materials
+Estimated total inventory value: $2,800,000
+
+(b) Equipment and Machinery:
+- Manufacturing equipment (injection molding machines, assembly lines)
+- Testing and quality control equipment
+- Office furniture and fixtures
+- Computer hardware and IT infrastructure
+- Warehouse equipment (forklifts, pallet jacks, racking)
+Equipment list attached as Exhibit A
+Estimated total value: $1,500,000
+
+(c) Intellectual Property:
+- Trademarks: "TechArmor," "ChargeMax," "ClearShield"
+- Product designs and specifications
+- Patents (3 issued, 2 pending)
+- Copyrights in marketing materials
+- Trade secrets and know-how
+- Product photography and digital assets
+- Website domain names and content
+
+(d) Contracts and Agreements:
+- Customer contracts and purchase orders
+- Supplier agreements
+- Distribution agreements (domestic and international)
+- Manufacturing agreements
+- Licensing agreements
+List attached as Exhibit B
+
+(e) Customer Relationships and Goodwill:
+- Customer lists and contact information
+- Customer purchase history and preferences
+- Supplier relationships
+- Business goodwill and reputation
+
+(f) Books and Records:
+- Customer records and databases
+- Supplier records
+- Product specifications and quality records
+- Sales and marketing materials
+- Training manuals and procedures
+- Financial records (past 7 years)
+
+(g) Real Property Leases:
+- Manufacturing facility lease (Los Angeles, CA)
+- Warehouse lease (Ontario, CA)
+- Office space lease (Los Angeles, CA)
+Leases attached as Exhibit C
+
+(h) Permits and Licenses:
+- Business licenses
+- Manufacturing permits
+- Environmental permits
+- Import/export licenses
+
+1.2 Excluded Assets
+The following assets are excluded from this transaction and shall remain the property of Seller ("Excluded Assets"):
+
+(a) Cash and cash equivalents
+(b) Accounts receivable as of Closing Date
+(c) Seller's corporate records and minute books
+(d) Seller's tax records and returns
+(e) Insurance policies and proceeds
+(f) Seller's employee benefit plans and related assets
+(g) Certain excluded equipment (see Exhibit D)
+(h) Seller's rights under this Agreement
+(i) Any assets not specifically listed as Purchased Assets
+
+1.3 Assumed Liabilities
+Buyer agrees to assume and discharge only the following liabilities ("Assumed Liabilities"):
+
+(a) Obligations under assigned contracts listed in Exhibit B arising after Closing Date
+(b) Purchase orders accepted by Buyer for delivery after Closing
+(c) Product warranties for products sold after Closing Date
+(d) Accrued but unused vacation time for transferred employees (up to $75,000)
+
+1.4 Excluded Liabilities
+Buyer shall not assume or be responsible for any liabilities of Seller except the Assumed Liabilities. All other liabilities remain the responsibility of Seller, including:
+
+(a) All accounts payable as of Closing Date
+(b) All taxes owed by Seller
+(c) Debt obligations and loans
+(d) Product liability claims for products sold before Closing
+(e) Employee claims arising before Closing
+(f) Environmental liabilities
+(g) Litigation and claims against Seller
+(h) Pension and benefit plan obligations
+(i) Any liabilities not specifically assumed
+
+2. PURCHASE PRICE AND PAYMENT TERMS
+
+2.1 Total Purchase Price: $8,500,000 (Eight Million Five Hundred Thousand US Dollars)
+
+2.2 Purchase Price Allocation:
+- Inventory: $2,800,000
+- Equipment and Machinery: $1,500,000
+- Intellectual Property: $2,200,000
+- Customer Relationships and Goodwill: $1,700,000
+- Other Assets: $300,000
+
+2.3 Payment Structure:
+
+(a) Deposit: $850,000 (paid upon execution of this Agreement) - NON-REFUNDABLE except for Seller's material breach
+
+(b) Closing Payment: $6,800,000 payable at Closing via wire transfer
+
+(c) Holdback Amount: $850,000 held in escrow for 18 months to secure Seller's representations, warranties, and indemnification obligations
+
+(d) Earnout Payment: Up to $1,000,000 based on Business performance:
+- If Year 1 Gross Revenue exceeds $15M: $500,000 due within 30 days of Year 1 end
+- If Year 2 Gross Revenue exceeds $18M: Additional $500,000 due within 30 days of Year 2 end
+- Buyer to provide quarterly financial reports
+- Revenue calculated using GAAP principles
+
+2.4 Inventory Adjustment:
+Purchase price subject to adjustment based on physical inventory count at Closing:
+- If actual inventory value exceeds $2,800,000: Buyer pays difference
+- If actual inventory value less than $2,800,000: Seller refunds difference
+Adjustment settled within 30 days after final inventory count.
+
+2.5 Working Capital Adjustment:
+Target Working Capital: $500,000
+If Closing Working Capital differs from target, purchase price adjusted dollar-for-dollar.
+
+3. CLOSING
+
+3.1 Closing Date: August 30, 2025, or such other date mutually agreed ("Closing Date")
+
+3.2 Closing Location: Offices of Buyer's counsel in Dallas, Texas, or via electronic exchange of documents
+
+3.3 Deliveries by Seller at Closing:
+(a) Bill of Sale for tangible assets
+(b) Assignment and Assumption Agreement
+(c) Intellectual Property Assignment Agreement
+(d) Assignments of contracts, leases, and permits
+(e) Certificate of Good Standing
+(f) Officer's Certificate certifying representations and warranties
+(g) Non-Competition Agreement (executed by key Seller personnel)
+(h) Consents and approvals from third parties
+(i) Evidence of termination of liens and encumbrances
+(j) Keys, access codes, and passwords
+(k) Updated asset lists and schedules
+
+3.4 Deliveries by Buyer at Closing:
+(a) Purchase price payment
+(b) Assignment and Assumption Agreement
+(c) Officer's Certificate certifying representations and warranties
+(d) Escrow Agreement for holdback amount
+(e) Assumption of assigned contracts
+
+4. REPRESENTATIONS AND WARRANTIES OF SELLER
+
+Seller represents and warrants to Buyer:
+
+4.1 Organization and Authority: Seller is duly organized, validly existing, and in good standing. Seller has full authority to execute and perform this Agreement.
+
+4.2 Title to Assets: Seller has good and marketable title to all Purchased Assets, free and clear of all liens, encumbrances, and claims.
+
+4.3 Financial Statements: Financial statements provided are accurate and prepared in accordance with GAAP.
+
+4.4 No Undisclosed Liabilities: No liabilities exist except those disclosed in financial statements or schedules.
+
+4.5 Contracts: All contracts listed in Exhibit B are valid, in full force, and not in default.
+
+4.6 Intellectual Property: Seller owns or has right to use all intellectual property. No infringement claims pending or threatened.
+
+4.7 Compliance with Laws: Business operated in compliance with all applicable laws and regulations.
+
+4.8 Litigation: No litigation, claims, or governmental proceedings pending or threatened.
+
+4.9 Inventory: Inventory is merchantable, saleable, and not obsolete or damaged.
+
+4.10 Environmental Matters: No environmental violations or contamination.
+
+4.11 Employees: List of employees provided. No labor disputes pending.
+
+4.12 Product Liability: No material product liability claims or recalls in past 3 years.
+
+5. REPRESENTATIONS AND WARRANTIES OF BUYER
+
+Buyer represents and warrants to Seller:
+
+5.1 Organization and Authority: Buyer is duly organized, validly existing, and in good standing. Buyer has full authority to execute and perform this Agreement.
+
+5.2 Financial Capacity: Buyer has sufficient funds to complete the purchase.
+
+5.3 No Conflicts: This Agreement does not violate any agreements or obligations of Buyer.
+
+6. COVENANTS
+
+6.1 Non-Competition Agreement
+Seller and its principals agree not to compete with the Business for a period of 5 years within the following territories:
+- United States
+- Canada
+- Mexico
+
+Prohibited activities include:
+- Manufacturing or selling competing products
+- Soliciting customers of the Business
+- Soliciting employees of the Business
+- Disclosing confidential information
+
+6.2 Non-Solicitation: Seller shall not solicit or hire any employees of the Business for 3 years following Closing.
+
+6.3 Transition Assistance
+Seller agrees to provide transition assistance for 90 days following Closing, including:
+- Training of Buyer's personnel
+- Introduction to key customers and suppliers
+- Transfer of knowledge and know-how
+- Assistance with contract assignments
+
+Seller personnel availability: Up to 40 hours per week
+Compensation: $200 per hour for services beyond 160 total hours
+
+6.4 Conduct of Business Prior to Closing
+Between execution and Closing, Seller shall:
+- Operate Business in ordinary course
+- Maintain inventory levels
+- Preserve customer and supplier relationships
+- Not enter into material contracts without Buyer consent
+- Maintain insurance coverage
+- Not dispose of assets except in ordinary course
+
+6.5 Confidentiality: Both parties agree to maintain confidentiality of this transaction and confidential information.
+
+6.6 Employee Matters
+Buyer agrees to:
+- Make offers to substantially all current employees (minimum 90%)
+- Recognize prior service for vacation accrual purposes
+- Provide comparable compensation and benefits
+
+7. CONDITIONS PRECEDENT
+
+7.1 Conditions to Buyer's Obligations:
+(a) Representations and warranties of Seller true and correct at Closing
+(b) Seller performed all covenants and obligations
+(c) No material adverse change in Business
+(d) Required consents and approvals obtained
+(e) Satisfactory completion of due diligence
+(f) Satisfactory inventory count
+(g) Third-party consents for contract assignments
+(h) Title insurance for real property leases
+(i) Delivery of all Closing documents
+
+7.2 Conditions to Seller's Obligations:
+(a) Representations and warranties of Buyer true and correct at Closing
+(b) Buyer performed all covenants and obligations
+(c) Payment of purchase price
+(d) Delivery of all Closing documents
+
+8. INDEMNIFICATION
+
+8.1 Indemnification by Seller
+Seller shall indemnify and hold harmless Buyer from losses arising from:
+(a) Breach of representations, warranties, or covenants
+(b) Excluded Liabilities
+(c) Operation of Business prior to Closing
+(d) Taxes related to periods prior to Closing
+(e) Employee claims arising before Closing
+
+8.2 Indemnification by Buyer
+Buyer shall indemnify and hold harmless Seller from losses arising from:
+(a) Breach of representations, warranties, or covenants
+(b) Assumed Liabilities
+(c) Operation of Business after Closing
+
+8.3 Limitations on Indemnification
+- Deductible (Basket): $50,000 (aggregate claims must exceed before indemnification applies)
+- Cap: $850,000 (holdback amount), except for fraud or willful misrepresentation
+- Claims must be made within 18 months of Closing (except tax matters: applicable statute of limitations)
+
+8.4 Exclusive Remedy: Indemnification is exclusive remedy for breaches, except for fraud.
+
+9. TERMINATION
+
+9.1 Termination Rights
+This Agreement may be terminated:
+(a) By mutual written consent
+(b) By either party if Closing does not occur by September 30, 2025
+(c) By Buyer if material breach by Seller uncured within 15 days
+(d) By Seller if material breach by Buyer uncured within 15 days
+(e) By either party if required regulatory approval denied
+
+9.2 Effect of Termination
+Upon termination:
+- All obligations cease except confidentiality
+- Deposit returned to Buyer (unless Buyer breach caused termination)
+- Each party bears own costs and expenses
+
+10. GENERAL PROVISIONS
+
+10.1 Governing Law: State of California
+
+10.2 Dispute Resolution: Binding arbitration under AAA Commercial Rules in Los Angeles, CA
+
+10.3 Entire Agreement: This Agreement (including Exhibits) constitutes entire agreement.
+
+10.4 Expenses: Each party bears own expenses except Buyer pays:
+- 50% of escrow fees
+- Transfer taxes and recording fees
+
+10.5 Brokers: Each party represents no brokers involved except as disclosed. Each party indemnifies other for claims by brokers engaged by that party.
+
+10.6 Notices: Written notices to addresses above via email (confirmed) or certified mail.
+
+10.7 Assignment: Neither party may assign without consent, except Buyer may assign to affiliate.
+
+10.8 Severability: Invalid provisions severed; remaining provisions remain effective.
+
+10.9 Counterparts: May be executed in counterparts.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.
+
+SELLER: MOBILETECH ACCESSORIES INC.
+
+Signature: _________________________
+Name: Kevin Rodriguez
+Title: Chief Executive Officer
+Date: July 15, 2025
+
+
+BUYER: GLOBALELECTRONICS DISTRIBUTION LLC
+
+Signature: _________________________
+Name: Lisa Chen
+Title: President
+Date: July 15, 2025

@@ -1,0 +1,391 @@
+INTELLECTUAL PROPERTY LICENSE AGREEMENT
+
+This Intellectual Property License Agreement ("Agreement") is entered into as of August 20, 2025, by and between:
+
+LICENSOR: NanoTech Materials Research Institute
+Address: 3500 Research Park Drive, Cambridge, MA 02138
+Represented by: Dr. Susan Patel, Director of Technology Transfer
+Email: s.patel@nanotechresearch.edu
+("Licensor")
+
+LICENSEE: Advanced Manufacturing Solutions Corp.
+Address: 6000 Industrial Boulevard, Pittsburgh, PA 15201
+Represented by: Thomas Anderson, Chief Technology Officer
+Email: t.anderson@advancedmfg.com
+("Licensee")
+
+RECITALS
+
+WHEREAS, Licensor is a leading research institution specializing in advanced nanomaterials and surface coating technologies;
+
+WHEREAS, Licensor has developed and owns certain patented technology related to ultra-durable ceramic nanocoatings for industrial applications ("Licensed Technology");
+
+WHEREAS, Licensee is engaged in the business of manufacturing high-performance industrial components and desires to incorporate the Licensed Technology into its products;
+
+WHEREAS, Licensor desires to grant Licensee a license to use the Licensed Technology, and Licensee desires to obtain such license, on the terms and conditions set forth herein;
+
+NOW, THEREFORE, in consideration of the mutual covenants and agreements contained herein, the parties agree as follows:
+
+1. DEFINITIONS
+
+1.1 "Licensed Patents" means:
+(a) U.S. Patent No. 11,234,567 entitled "Ceramic Nanocoating Compositions and Methods of Application"
+(b) U.S. Patent No. 11,345,678 entitled "Multi-Layer Nanostructured Coatings with Enhanced Durability"
+(c) U.S. Patent Application Serial No. 17/987,654 entitled "Self-Healing Nanocoating Systems"
+(d) All foreign counterparts and equivalents of the above
+(e) All continuations, continuations-in-part, divisionals, reissues, and extensions thereof
+Complete list attached as Exhibit A
+
+1.2 "Licensed Know-How" means all technical information, data, specifications, formulations, processes, methods, techniques, and trade secrets related to the Licensed Patents, whether patentable or not, including:
+- Coating formulation recipes
+- Application process parameters
+- Quality control procedures
+- Testing methodologies
+- Manufacturing best practices
+
+1.3 "Licensed Technology" means collectively the Licensed Patents and Licensed Know-How.
+
+1.4 "Licensed Products" means any products, materials, or components that:
+(a) Are covered by one or more Valid Claims of the Licensed Patents, or
+(b) Are manufactured using the Licensed Know-How
+
+1.5 "Net Sales" means gross revenues from sale of Licensed Products, less:
+- Trade discounts and allowances
+- Returns and credits
+- Sales and use taxes
+- Shipping and insurance costs
+- Bad debt written off
+
+1.6 "Field of Use" means industrial applications including:
+- Aerospace components
+- Automotive parts
+- Industrial machinery components
+- Medical device components
+- Defense and military equipment
+
+Excluded: Consumer electronics, decorative coatings, architectural applications
+
+1.7 "Territory" means:
+- United States of America
+- Canada
+- European Union member states
+- Japan
+- South Korea
+- Australia
+
+1.8 "Valid Claim" means a claim of an issued patent that has not expired, been declared invalid by a court or patent office, or been abandoned.
+
+2. GRANT OF LICENSE
+
+2.1 License Grant
+Licensor hereby grants to Licensee:
+(a) An exclusive, royalty-bearing license under the Licensed Technology
+(b) In the Field of Use
+(c) In the Territory
+(d) To make, have made, use, sell, offer for sale, and import Licensed Products
+(e) With the right to sublicense as specified in Section 2.4
+
+2.2 Exclusivity
+This is an EXCLUSIVE license within the Field of Use and Territory. Licensor shall not:
+- Grant licenses to third parties in the Field and Territory
+- Practice the Licensed Technology in the Field and Territory for commercial purposes
+- Compete with Licensee's Licensed Products in the Field and Territory
+
+Licensor retains rights to:
+- Practice Licensed Technology for research and educational purposes
+- License outside the Field of Use or Territory
+- Practice for government-funded research projects
+
+2.3 Retained Rights
+Licensor retains:
+- Ownership of all Licensed Technology
+- Right to practice for non-commercial research
+- Right to publish research findings (subject to Section 8)
+- Right to grant licenses for non-commercial use
+
+2.4 Sublicensing Rights
+Licensee may grant sublicenses to third parties subject to:
+(a) Prior written notice to Licensor (consent not required)
+(b) Sublicense terms consistent with this Agreement
+(c) Sublicense agreements in writing
+(d) Licensee remains responsible for sublicensee compliance
+(e) Licensor receives royalty reports on sublicensee sales
+(f) Sublicenses terminate upon termination of this Agreement
+
+2.5 Improvements
+Licensee Improvements: Owned by Licensee, but Licensor receives royalty-free, non-exclusive license for research purposes.
+
+Licensor Improvements: Automatically included in Licensed Technology if within Field of Use.
+
+Joint Improvements: Co-owned with each party having right to use without accounting to the other.
+
+3. TERM AND TERMINATION
+
+3.1 Initial Term: This Agreement commences on August 20, 2025, and continues until the expiration of the last Valid Claim of the Licensed Patents, unless earlier terminated.
+
+3.2 Post-Patent Term: Upon expiration of all Licensed Patents, license becomes perpetual, royalty-free, and irrevocable for Licensed Know-How.
+
+3.3 Termination by Licensee: Licensee may terminate at any time with 180 days written notice.
+
+3.4 Termination for Breach:
+Either party may terminate if the other party:
+- Materially breaches and fails to cure within 60 days of written notice
+- Becomes insolvent or files bankruptcy
+- Challenges validity of Licensed Patents (for Licensee only)
+
+3.5 Effect of Termination:
+(a) All licenses granted herein terminate immediately
+(b) Licensee shall cease manufacturing, using, and selling Licensed Products
+(c) Licensee may sell existing inventory for 180 days (with continued royalty payments)
+(d) Sublicenses survive if sublicensees pay royalties directly to Licensor
+(e) Payment obligations for sales prior to termination continue
+(f) Licensee returns or destroys all confidential Licensed Know-How
+(g) Accrued obligations and indemnities survive
+
+4. FINANCIAL TERMS
+
+4.1 Upfront License Fee: $500,000 payable within 30 days of Agreement execution (non-refundable, non-creditable)
+
+4.2 Annual Minimum Royalties:
+Year 1 (2025-2026): $100,000
+Year 2 (2026-2027): $200,000
+Year 3 (2027-2028): $300,000
+Year 4 and beyond: $400,000
+
+Payable January 31 of each year. Creditable against earned royalties for that year.
+
+4.3 Running Royalties:
+Tier 1 - Net Sales $0 to $10M: 5.0%
+Tier 2 - Net Sales $10M to $25M: 4.0%
+Tier 3 - Net Sales above $25M: 3.0%
+
+Tiers apply progressively (e.g., first $10M at 5%, next $15M at 4%, etc.)
+
+4.4 Sublicense Income: Licensee shall pay Licensor 25% of all sublicense fees and royalties received from sublicensees.
+
+4.5 Milestone Payments:
+- First commercial sale: $250,000
+- Cumulative Net Sales reach $50M: $500,000
+- Cumulative Net Sales reach $100M: $750,000
+Payable within 30 days of achievement.
+
+4.6 Patent Prosecution and Maintenance Costs:
+Licensee shall reimburse Licensor for:
+- Past patent prosecution costs: $125,000 (due within 60 days)
+- Ongoing prosecution and maintenance costs for Licensed Patents
+- Costs invoiced quarterly with supporting documentation
+
+4.7 Payment Terms:
+- Quarterly royalty payments due 45 days after quarter end
+- Payments via wire transfer
+- Late payments accrue interest at 1.5% per month
+- All payments in US Dollars
+
+5. RECORDS AND REPORTING
+
+5.1 Records: Licensee shall maintain complete and accurate records of:
+- Licensed Product sales
+- Net Sales calculations
+- Sublicense agreements and payments
+- Milestone achievements
+
+5.2 Quarterly Reports: Due 30 days after each quarter end, including:
+- Gross sales and Net Sales by product and country
+- Royalty calculations
+- Sublicense income
+- Number of units sold
+- Milestone progress
+
+5.3 Annual Reports: Due 60 days after year end, including:
+- Comprehensive financial summary
+- Market analysis and forecasts
+- Product development updates
+- Sublicensee activities
+
+5.4 Audit Rights:
+Licensor may audit Licensee's records:
+- Once per year upon 30 days notice
+- During business hours
+- At Licensor's expense (unless underpayment >5%, then Licensee pays)
+- By independent certified accountant
+- Subject to confidentiality obligations
+
+6. DILIGENCE OBLIGATIONS
+
+6.1 Development Milestones:
+- Within 12 months: Complete product development and testing
+- Within 18 months: Obtain necessary regulatory approvals
+- Within 24 months: First commercial sale of Licensed Product
+- Within 36 months: Achieve Net Sales of at least $5 million
+
+6.2 Commercialization Efforts:
+Licensee shall use commercially reasonable efforts to:
+- Develop Licensed Products
+- Obtain regulatory approvals
+- Market and sell Licensed Products
+- Expand into all major markets in Territory
+
+6.3 Failure to Meet Milestones:
+If Licensee fails to meet milestone, Licensor may:
+- Convert license from exclusive to non-exclusive (with 90 days to cure)
+- Reduce Territory
+- Terminate Agreement (after 2 consecutive failures)
+
+6.4 Reports: Licensee shall provide semi-annual diligence reports detailing progress.
+
+7. INTELLECTUAL PROPERTY MANAGEMENT
+
+7.1 Patent Prosecution:
+Licensor Controls: Licensor shall have first right to prosecute and maintain Licensed Patents.
+Licensee Input: Licensee may provide comments and suggestions.
+Licensee Costs: Licensee reimburses all reasonable prosecution and maintenance costs.
+Abandonment: If Licensor decides to abandon any Licensed Patent, Licensee has right to assume prosecution at own expense.
+
+7.2 Patent Enforcement:
+(a) Notice: Each party shall promptly notify the other of any suspected infringement.
+
+(b) Licensee First Right: Licensee has first right to enforce Licensed Patents against infringers:
+- 90 days to decide whether to sue
+- Licensee controls litigation and bears costs
+- Licensor cooperates and may join as party
+- Licensee retains recoveries after costs; remainder split 70/30 (Licensee/Licensor)
+
+(c) Licensor Backup Right: If Licensee declines or fails to sue within 90 days:
+- Licensor may enforce at own expense
+- Licensor retains all recoveries after costs
+
+(d) Settlement: Neither party may settle without other's consent (not unreasonably withheld).
+
+7.3 Defense of Patents:
+(a) If Licensed Patents challenged (IPR, reexamination, opposition):
+- Licensor has right to defend
+- Licensee reimburses reasonable costs
+- Licensee may participate at own expense
+
+(b) Licensee may not challenge validity of Licensed Patents (no-challenge clause).
+
+8. CONFIDENTIALITY
+
+8.1 Confidential Information: Licensed Know-How and business terms of this Agreement are confidential.
+
+8.2 Obligations: Each party shall:
+- Protect confidential information with reasonable care
+- Not disclose except to employees, sublicensees, and advisors with need to know
+- Use confidential information only for permitted purposes
+- Not reverse engineer Licensed Technology
+
+8.3 Exceptions: Standard exceptions for publicly known, independently developed, or rightfully received information.
+
+8.4 Publication: Licensor may publish research findings after giving Licensee 60 days to review and request redaction of confidential information.
+
+8.5 Duration: Confidentiality obligations survive termination for 10 years.
+
+9. WARRANTIES AND REPRESENTATIONS
+
+9.1 Licensor Warrants:
+(a) Ownership of Licensed Technology
+(b) Authority to grant license
+(c) Licensed Patents are valid and enforceable (to Licensor's knowledge)
+(d) No conflicting agreements
+(e) No knowledge of infringement by Licensed Technology
+
+9.2 DISCLAIMER: EXCEPT AS EXPRESSLY STATED, LICENSED TECHNOLOGY PROVIDED "AS IS" WITHOUT WARRANTIES OF MERCHANTABILITY, FITNESS FOR PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+
+9.3 Licensee Warrants:
+(a) Authority to enter Agreement
+(b) Compliance with all applicable laws
+(c) Proper use of Licensed Technology
+
+10. INDEMNIFICATION AND LIABILITY
+
+10.1 Licensee Indemnity:
+Licensee shall indemnify and hold harmless Licensor from claims arising from:
+- Manufacture, use, or sale of Licensed Products
+- Breach of this Agreement
+- Negligence or willful misconduct
+- Product liability claims
+- Regulatory violations
+
+10.2 Licensor Indemnity:
+Licensor shall indemnify Licensee from third-party claims that Licensed Technology infringes third-party intellectual property rights.
+
+10.3 Indemnification Procedures:
+- Prompt written notice of claim
+- Indemnifying party controls defense
+- Indemnified party cooperates
+- No settlement without consent
+
+10.4 Limitation of Liability:
+EXCEPT FOR INDEMNIFICATION OBLIGATIONS, NEITHER PARTY LIABLE FOR CONSEQUENTIAL, INCIDENTAL, OR PUNITIVE DAMAGES.
+
+Licensor's total liability capped at fees received in 12 months prior to claim.
+
+11. INSURANCE
+
+Licensee shall maintain insurance:
+- Product Liability: $10 million per occurrence
+- General Liability: $5 million
+- Professional Liability: $5 million
+
+Licensor named as additional insured. Certificates provided annually.
+
+12. REGULATORY COMPLIANCE
+
+12.1 Licensee responsible for obtaining all regulatory approvals for Licensed Products.
+
+12.2 Compliance with FDA, EPA, OSHA, and all applicable regulations.
+
+12.3 Export Controls: Compliance with export control laws. No export to embargoed countries.
+
+13. QUALITY CONTROL AND TRADEMARK
+
+13.1 Quality Standards: Licensed Products shall meet industry standards and specifications provided by Licensor.
+
+13.2 Trademark License: Licensor grants Licensee non-exclusive right to use "NanoTech Certified" mark on Licensed Products meeting quality standards.
+
+13.3 Quality Control: Licensor may inspect facilities and test products to ensure quality (with reasonable notice).
+
+13.4 Recall: Licensee responsible for product recalls. Must notify Licensor within 24 hours.
+
+14. GENERAL PROVISIONS
+
+14.1 Governing Law: Commonwealth of Massachusetts
+
+14.2 Dispute Resolution:
+- Good faith negotiations (30 days)
+- Mediation in Boston, MA (60 days)
+- Binding arbitration under AAA rules
+
+14.3 Entire Agreement: This Agreement (including Exhibits) constitutes entire agreement and supersedes all prior agreements.
+
+14.4 Amendment: Must be in writing signed by both parties.
+
+14.5 Assignment:
+- Licensee may not assign without prior written consent
+- Licensor may assign to successor institution
+- Assignment to acquirer of Licensee permitted with notice
+
+14.6 Force Majeure: Neither party liable for delays due to events beyond reasonable control.
+
+14.7 Notices: Written notices to addresses above via email (confirmed) or certified mail.
+
+14.8 Severability: Invalid provisions severed; remaining provisions remain in effect.
+
+14.9 Relationship: Parties are independent contractors, not partners or joint venturers.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.
+
+LICENSOR: NANOTECH MATERIALS RESEARCH INSTITUTE
+
+Signature: _________________________
+Name: Dr. Susan Patel
+Title: Director of Technology Transfer
+Date: August 20, 2025
+
+
+LICENSEE: ADVANCED MANUFACTURING SOLUTIONS CORP.
+
+Signature: _________________________
+Name: Thomas Anderson
+Title: Chief Technology Officer
+Date: August 20, 2025

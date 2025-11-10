@@ -113,7 +113,7 @@ public class DocumentUploadService : IDocumentUploadService
 
     private void ValidateFile(string fileName, Stream content, string contentType)
     {
-        var allowedTypes = new[] { "application/pdf", "application/msword", 
+        var allowedTypes = new[] { "application/pdf", "application/msword","text/plain", 
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document" };
         
         if (!allowedTypes.Contains(contentType))

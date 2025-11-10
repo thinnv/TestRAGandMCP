@@ -17,25 +17,30 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
 
-// Register LLM providers instead of Azure OpenAI directly
+// Register LLM providers
 builder.Services.AddLLMProviders(builder.Configuration);
 
-// Keep Semantic Kernel for now (TODO: Replace with provider abstraction)
-var openAIEndpoint = builder.Configuration["OpenAI:Endpoint"] ?? "https://your-openai-endpoint.openai.azure.com";
-var openAIApiKey = builder.Configuration["OpenAI:ApiKey"] ?? "your-api-key";
-var embeddingDeploymentName = builder.Configuration["OpenAI:EmbeddingDeploymentName"] ?? "text-embedding-ada-002";
+// Configure AI provider from appsettings (Gemini by default)
+var aiProvider = builder.Configuration["AI:Provider"] ?? "Gemini";
+var geminiApiKey = builder.Configuration["AI:Gemini:ApiKey"] ?? "";
+
+// Register ITextEmbeddingGenerationService explicitly
+#pragma warning disable SKEXP0010
+builder.Services.AddOpenAITextEmbeddingGeneration(
+    modelId: "text-embedding-ada-002",
+    apiKey: geminiApiKey);
+#pragma warning restore SKEXP0010
 
 // Configure Semantic Kernel for embeddings
 builder.Services.AddSingleton<Kernel>(provider =>
 {
     var kernelBuilder = Kernel.CreateBuilder();
     
-#pragma warning disable SKEXP0010 // Type is for evaluation purposes only and is subject to change or removal in future updates
-    kernelBuilder.AddAzureOpenAITextEmbeddingGeneration(
-        deploymentName: embeddingDeploymentName,
-        endpoint: openAIEndpoint,
-        apiKey: openAIApiKey);
-#pragma warning restore SKEXP0010
+    // Get the embedding service from DI
+#pragma warning disable SKEXP0001
+    var embeddingService = provider.GetRequiredService<Microsoft.SemanticKernel.Embeddings.ITextEmbeddingGenerationService>();
+#pragma warning restore SKEXP0001
+    kernelBuilder.Services.AddSingleton(embeddingService);
     
     return kernelBuilder.Build();
 });

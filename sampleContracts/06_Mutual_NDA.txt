@@ -1,0 +1,160 @@
+MUTUAL NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement ("NDA") is entered into as of March 15, 2025, by and between:
+
+PARTY A: FinTech Innovations LLC
+Address: 2500 Financial District, San Francisco, CA 94111
+Contact: Sarah Martinez, Chief Technology Officer
+Email: s.martinez@fintechinnovations.com
+
+PARTY B: BlockChain Security Systems Inc.
+Address: 1800 Crypto Way, Austin, TX 78701
+Contact: Michael Chen, CEO
+Email: m.chen@blockchainsecurity.com
+
+WHEREAS, the parties wish to explore a potential business relationship regarding blockchain-based payment security solutions ("Purpose"); and
+
+WHEREAS, each party may disclose Confidential Information to the other in connection with such discussions;
+
+NOW THEREFORE, the parties agree as follows:
+
+1. DEFINITION OF CONFIDENTIAL INFORMATION
+
+1.1 "Confidential Information" means any information disclosed by one party ("Disclosing Party") to the other party ("Receiving Party"), whether orally, in writing, or by inspection of tangible objects, including:
+
+(a) Technical Information: Source code, algorithms, software architecture, API specifications, system designs, technical documentation, product roadmaps, research and development plans, prototypes, and technical specifications.
+
+(b) Business Information: Customer lists, supplier information, pricing strategies, marketing plans, business strategies, financial information, sales data, forecasts, market analyses, and competitive analyses.
+
+(c) Strategic Information: Merger and acquisition plans, partnership strategies, expansion plans, organizational structures, and business methods.
+
+(d) Proprietary Information: Trade secrets, know-how, inventions (whether patentable or not), discoveries, improvements, and any other proprietary information.
+
+1.2 Information marked as "Confidential," "Proprietary," or with similar designation shall be considered Confidential Information.
+
+1.3 Information disclosed orally shall be confirmed in writing within 30 days to be considered Confidential Information.
+
+2. EXCLUSIONS FROM CONFIDENTIAL INFORMATION
+
+Confidential Information shall not include information that:
+
+(a) Was publicly known at the time of disclosure or becomes publicly known through no breach of this Agreement by Receiving Party;
+
+(b) Was rightfully known by Receiving Party prior to disclosure by Disclosing Party, as evidenced by written records;
+
+(c) Is rightfully received by Receiving Party from a third party without breach of any confidentiality obligation;
+
+(d) Is independently developed by Receiving Party without use of or reference to Disclosing Party's Confidential Information, as evidenced by written records; or
+
+(e) Is approved for release by written authorization of Disclosing Party.
+
+3. OBLIGATIONS OF RECEIVING PARTY
+
+3.1 Non-Use: Receiving Party shall use Confidential Information solely for the Purpose and not for any other purpose without prior written consent of Disclosing Party.
+
+3.2 Non-Disclosure: Receiving Party shall not disclose Confidential Information to any third party except as permitted under Section 4.
+
+3.3 Protection: Receiving Party shall protect Confidential Information using at least the same degree of care it uses to protect its own confidential information, but in no event less than reasonable care.
+
+3.4 Access Limitation: Receiving Party shall limit access to Confidential Information to employees, contractors, and advisors who:
+- Have a legitimate need to know for the Purpose;
+- Have been informed of the confidential nature of such information; and
+- Are bound by confidentiality obligations at least as protective as this Agreement.
+
+3.5 Notification: Receiving Party shall promptly notify Disclosing Party of any unauthorized use or disclosure of Confidential Information.
+
+4. PERMITTED DISCLOSURES
+
+4.1 Legal Requirement: If Receiving Party is required by law, court order, or government regulation to disclose Confidential Information, it shall:
+- Provide Disclosing Party with prompt written notice;
+- Cooperate with Disclosing Party's efforts to seek protective order;
+- Disclose only the minimum information required; and
+- Use reasonable efforts to obtain confidential treatment.
+
+4.2 Professional Advisors: Receiving Party may disclose Confidential Information to its attorneys, accountants, and other professional advisors who are bound by professional confidentiality obligations.
+
+5. OWNERSHIP AND RETURN OF MATERIALS
+
+5.1 All Confidential Information remains the property of Disclosing Party.
+
+5.2 No license or right is granted under any patent, copyright, trade secret, or other intellectual property right except the limited right to use for the Purpose.
+
+5.3 Upon termination of this Agreement or upon request by Disclosing Party, Receiving Party shall:
+- Promptly return all tangible materials containing Confidential Information;
+- Delete or destroy all electronic copies; and
+- Certify in writing completion of such return/destruction.
+
+5.4 Receiving Party may retain one copy of Confidential Information solely for legal compliance purposes, subject to continuing obligations of this Agreement.
+
+6. NO OBLIGATION TO DISCLOSE
+
+Neither party is obligated to disclose any Confidential Information. Each party may determine in its sole discretion what information, if any, to disclose.
+
+7. NO OBLIGATION TO PROCEED
+
+This Agreement does not create any obligation for either party to proceed with any transaction or business relationship. Either party may terminate discussions at any time without liability.
+
+8. NO WARRANTY
+
+ALL CONFIDENTIAL INFORMATION IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND. Neither party makes any representation regarding accuracy or completeness of its Confidential Information.
+
+9. TERM AND TERMINATION
+
+9.1 Term: This Agreement commences on the date first written above and continues for 2 years, unless earlier terminated.
+
+9.2 Termination: Either party may terminate this Agreement at any time with 30 days written notice.
+
+9.3 Survival: Obligations regarding Confidential Information disclosed prior to termination shall survive termination for 5 years.
+
+10. REMEDIES
+
+10.1 Breach of this Agreement may cause irreparable harm for which monetary damages may be inadequate.
+
+10.2 Disclosing Party shall be entitled to seek equitable relief, including injunction and specific performance, in addition to all other remedies available at law or equity.
+
+10.3 Receiving Party shall be liable for breaches by its employees, contractors, and agents.
+
+11. EXPORT COMPLIANCE
+
+Each party agrees to comply with all applicable export control laws and regulations. Neither party shall export or re-export Confidential Information in violation of such laws.
+
+12. NO REVERSE ENGINEERING
+
+Receiving Party shall not reverse engineer, disassemble, or decompile any prototypes, software, or other tangible objects disclosed by Disclosing Party.
+
+13. GENERAL PROVISIONS
+
+13.1 Governing Law: This Agreement shall be governed by the laws of Delaware, without regard to conflicts of law principles.
+
+13.2 Jurisdiction: Any disputes shall be resolved exclusively in state or federal courts located in Delaware.
+
+13.3 Entire Agreement: This Agreement constitutes the entire agreement regarding confidentiality and supersedes all prior agreements.
+
+13.4 Amendment: This Agreement may be amended only by written instrument signed by both parties.
+
+13.5 Waiver: No waiver of any provision shall be effective unless in writing. Waiver of one breach shall not constitute waiver of any other breach.
+
+13.6 Severability: If any provision is held invalid or unenforceable, remaining provisions shall continue in full force.
+
+13.7 Assignment: This Agreement may not be assigned without prior written consent of the other party, except to successor in connection with merger or acquisition.
+
+13.8 Notices: All notices shall be in writing and delivered by email (with confirmation), courier, or certified mail to addresses above.
+
+13.9 Counterparts: This Agreement may be executed in counterparts, each deemed an original.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement as of the date first written above.
+
+PARTY A: FinTech Innovations LLC
+
+Signature: _________________________
+Name: Sarah Martinez
+Title: Chief Technology Officer
+Date: March 15, 2025
+
+
+PARTY B: BlockChain Security Systems Inc.
+
+Signature: _________________________
+Name: Michael Chen
+Title: Chief Executive Officer
+Date: March 15, 2025

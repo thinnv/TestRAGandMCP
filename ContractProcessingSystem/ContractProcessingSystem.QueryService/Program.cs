@@ -1,5 +1,6 @@
 using ContractProcessingSystem.QueryService.Services;
 using ContractProcessingSystem.Shared.Extensions;
+using Microsoft.SemanticKernel;
 using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,6 +16,26 @@ builder.Services.AddHttpClient();
 
 // Register LLM providers
 builder.Services.AddLLMProviders(builder.Configuration);
+
+// Configure Semantic Kernel for query processing
+builder.Services.AddSingleton<Kernel>(provider =>
+{
+    var kernelBuilder = Kernel.CreateBuilder();
+    
+    // Use Gemini API key from configuration
+    var geminiApiKey = builder.Configuration["AI:Gemini:ApiKey"] ?? "";
+    
+    if (!string.IsNullOrEmpty(geminiApiKey))
+    {
+#pragma warning disable SKEXP0070
+        kernelBuilder.AddOpenAIChatCompletion(
+            modelId: "gpt-3.5-turbo",
+            apiKey: geminiApiKey);
+#pragma warning restore SKEXP0070
+    }
+    
+    return kernelBuilder.Build();
+});
 
 // Register application services
 builder.Services.AddScoped<IQueryService, QueryService>();

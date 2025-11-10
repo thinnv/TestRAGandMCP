@@ -1,0 +1,179 @@
+MASTER SERVICE AGREEMENT
+
+This Master Service Agreement ("MSA") is executed on May 1, 2025, between:
+
+CLIENT: Healthcare Solutions Network
+Address: 999 Medical Plaza, Houston, TX 77002
+Contact: Dr. Patricia Thompson, Chief Operations Officer
+Email: p.thompson@healthcaresolutions.com
+
+SERVICE PROVIDER: CloudTech Infrastructure Services Inc.
+Address: 777 Tech Tower, Dallas, TX 75201
+Contact: David Lee, VP of Client Services
+Email: d.lee@cloudtech.com
+
+1. PURPOSE AND SCOPE
+This MSA establishes the general terms under which Service Provider will deliver cloud infrastructure and IT services to Client. Specific projects defined in individual Statements of Work (SOW).
+
+2. SERVICES COVERED
+Service Provider may provide:
+- Cloud infrastructure hosting and management
+- 24/7 monitoring and support
+- Database administration and optimization
+- Security and compliance services
+- Disaster recovery and backup
+- Network management
+- Software deployment and updates
+- Technical consulting
+
+3. TERM AND TERMINATION
+Effective Date: May 1, 2025
+Initial Term: 3 years
+Auto-Renewal: Annual unless terminated with 90 days notice
+Termination for Convenience: 180 days written notice
+Termination for Cause: 30 days to cure breach
+
+4. SERVICE LEVELS AND PERFORMANCE
+Uptime Guarantee: 99.9% monthly uptime
+Response Times:
+- Critical (P1): 15 minutes
+- High (P2): 2 hours
+- Medium (P3): 8 hours
+- Low (P4): 24 hours
+
+Service Credits:
+- 99.0-99.9% uptime: 10% monthly credit
+- 95.0-99.0% uptime: 25% monthly credit
+- Below 95.0% uptime: 50% monthly credit
+
+5. PRICING STRUCTURE
+Base Infrastructure Fee: $25,000/month
+Includes:
+- 50TB storage
+- 500GB bandwidth
+- 10 virtual servers
+- Basic monitoring and support
+
+Additional Services (per SOW):
+- Additional storage: $0.15/GB/month
+- Additional bandwidth: $0.10/GB
+- Additional servers: $500/server/month
+- Premium support: $5,000/month
+- Consulting: $200/hour
+
+Annual Adjustment: Lesser of 3% or CPI increase
+
+6. PAYMENT TERMS
+Billing Cycle: Monthly in advance
+Payment Due: Net 30 from invoice date
+Late Fees: 1.5% per month on overdue amounts
+SOW Payments: As specified in individual SOWs
+Disputed Charges: Must notify within 15 days
+
+7. DATA SECURITY AND COMPLIANCE
+Service Provider Shall:
+- Maintain SOC 2 Type II certification
+- Comply with HIPAA regulations
+- Encrypt data at rest and in transit
+- Perform annual security audits
+- Maintain cybersecurity insurance ($5M)
+- Conduct background checks on staff
+- Provide security incident reports within 24 hours
+
+8. CONFIDENTIALITY
+Both parties agree to:
+- Protect confidential information
+- Use information only for Agreement purposes
+- Return or destroy information upon termination
+- Maintain confidentiality for 5 years post-termination
+
+Protected Information Includes:
+- Technical specifications and architecture
+- Patient health information (PHI)
+- Business strategies and pricing
+- Security procedures
+
+9. INTELLECTUAL PROPERTY
+Pre-existing IP: Remains with respective owner
+Developed IP: Client owns custom developments
+License: Service Provider grants Client license to use platform
+Third-party Software: Licensed separately as needed
+
+10. WARRANTIES
+Service Provider Warrants:
+- Services performed professionally
+- Compliance with applicable laws
+- No infringement of third-party rights
+- Personnel properly trained and qualified
+- Disaster recovery procedures tested quarterly
+
+11. LIABILITY AND INDEMNIFICATION
+Service Provider Liability Cap: 12 months of fees paid
+Exceptions to Cap:
+- Willful misconduct
+- Gross negligence
+- Breach of confidentiality
+- Security breaches due to Provider negligence
+
+Indemnification:
+Each party indemnifies other for their own:
+- Negligence or willful misconduct
+- Breach of Agreement
+- Infringement of IP rights
+- Violation of laws or regulations
+
+12. DISASTER RECOVERY AND BUSINESS CONTINUITY
+Recovery Time Objective (RTO): 4 hours
+Recovery Point Objective (RPO): 1 hour
+Backup Frequency: Continuous with hourly snapshots
+Backup Retention: 30 days standard, 7 years for compliance
+DR Testing: Quarterly with annual full test
+Geographic Redundancy: Data replicated to secondary region
+
+13. INSURANCE REQUIREMENTS
+Service Provider Maintains:
+- General Liability: $5M
+- Professional Liability: $5M
+- Cyber Liability: $10M
+- Workers Compensation: Statutory limits
+
+14. AUDIT RIGHTS
+Client may audit Service Provider annually with 30 days notice for:
+- Security compliance
+- Financial records related to services
+- Performance metrics
+- Data handling procedures
+
+15. CHANGE MANAGEMENT
+Changes to production environment require:
+- Change request submitted 5 business days prior
+- Client approval for changes affecting availability
+- Rollback plan for all changes
+- Communication plan for user-impacting changes
+
+16. DISPUTE RESOLUTION
+Escalation Process:
+1. Technical teams attempt resolution (5 days)
+2. Management escalation (10 days)
+3. Executive escalation (10 days)
+4. Mediation (30 days)
+5. Binding arbitration in Houston, TX
+
+17. FORCE MAJEURE
+Neither party liable for delays due to events beyond reasonable control, including natural disasters, war, terrorism, or government actions.
+
+18. GOVERNING LAW
+This MSA governed by laws of Texas.
+
+19. ENTIRE AGREEMENT
+This MSA and all executed SOWs constitute entire agreement between parties.
+
+AGREED AND EXECUTED:
+
+CLIENT: ___________________________  Date: _____________
+        Dr. Patricia Thompson, COO
+        Healthcare Solutions Network
+
+SERVICE PROVIDER: __________________  Date: _____________
+                  David Lee, VP Client Services
+                  CloudTech Infrastructure Services Inc.

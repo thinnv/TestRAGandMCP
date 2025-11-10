@@ -1,0 +1,138 @@
+EMPLOYMENT CONTRACT
+
+This Employment Contract ("Contract") is entered into on March 1, 2025, between:
+
+EMPLOYER: Innovation Tech Solutions
+Address: 555 Corporate Center, Austin, TX 78701
+Contact: HR Department
+Phone: (512) 555-0100
+
+EMPLOYEE: Jessica Martinez
+Address: 789 Residential Lane, Austin, TX 78704
+Phone: (512) 555-0234
+Email: j.martinez@email.com
+
+1. POSITION AND DUTIES
+Job Title: Senior Software Engineer
+Department: Engineering - Cloud Services Team
+Reports To: Engineering Manager, Cloud Infrastructure
+
+Primary Responsibilities:
+- Design and develop scalable cloud-based applications
+- Lead technical architecture decisions for cloud migration
+- Mentor junior developers and conduct code reviews
+- Participate in agile development processes
+- Collaborate with product team on feature development
+- Maintain and improve CI/CD pipelines
+- On-call rotation for production support (1 week per month)
+
+2. EMPLOYMENT TERM
+Start Date: March 15, 2025
+Employment Type: Full-time, Regular
+Status: Exempt Employee
+Probationary Period: 90 days
+
+3. COMPENSATION
+Base Salary: $145,000 per year
+Pay Frequency: Bi-weekly (26 pay periods)
+Signing Bonus: $10,000 (paid with first paycheck)
+Annual Review: Eligible for merit increase in March 2026
+
+4. BONUS AND EQUITY
+Performance Bonus: Up to 15% of base salary based on individual and company performance
+Stock Options: 5,000 shares at current strike price
+Vesting Schedule: 4-year vest with 1-year cliff
+Refresh Grants: Eligible for additional grants annually
+
+5. BENEFITS PACKAGE
+Health Insurance:
+- Medical, dental, vision coverage (starts day 1)
+- Company pays 80% of premiums for employee
+- Family coverage available at employee cost
+
+Retirement:
+- 401(k) with 5% company match
+- Immediate eligibility and vesting
+
+Time Off:
+- 20 days paid vacation per year
+- 10 paid sick days per year
+- 11 company holidays
+- 5 days personal time
+
+Professional Development:
+- $3,000 annual education budget
+- Conference attendance (2 per year)
+- Certification reimbursement
+- LinkedIn Learning subscription
+
+Other Benefits:
+- Remote work flexibility (3 days/week)
+- Gym membership reimbursement ($100/month)
+- Commuter benefits
+- Free lunch on office days
+- Latest MacBook Pro and accessories
+
+6. WORK SCHEDULE
+Standard Hours: 40 hours per week
+Core Hours: 10 AM - 3 PM (must be available)
+Flexible Schedule: Permitted with manager approval
+Remote Work: Up to 3 days per week from home
+
+7. CONFIDENTIALITY
+Employee agrees to maintain strict confidentiality of:
+- Proprietary source code and technical documentation
+- Business strategies and financial information
+- Customer data and trade secrets
+- Personnel information
+Obligation continues indefinitely after employment ends
+
+8. INTELLECTUAL PROPERTY
+All work product, inventions, and discoveries made during employment are property of Employer. Employee agrees to assign all rights to Employer.
+
+9. NON-COMPETE AND NON-SOLICITATION
+During employment and for 12 months after:
+- Non-compete within 50-mile radius in same industry
+- No solicitation of company employees
+- No solicitation of company customers
+(Employer will pay 50% of base salary during non-compete period if enforced)
+
+10. TERMINATION
+At-Will Employment: Either party may terminate at any time
+Notice Period: 2 weeks preferred but not required
+Final Paycheck: Within 7 days of termination
+Return of Property: All company equipment returned within 3 days
+
+Severance (if terminated without cause):
+- 2 weeks base salary for every year of service
+- Continued health benefits for 3 months
+- Accelerated vesting of 25% unvested stock options
+
+11. CODE OF CONDUCT
+Employee agrees to:
+- Follow all company policies and procedures
+- Maintain professional behavior
+- Report conflicts of interest
+- Complete required training
+- Protect company assets
+
+12. DISPUTE RESOLUTION
+Any employment disputes shall be resolved through:
+1. Internal HR mediation
+2. External mediation if unresolved
+3. Binding arbitration as final remedy
+
+13. GOVERNING LAW
+This Contract governed by employment laws of Texas.
+
+14. ENTIRE AGREEMENT
+This Contract represents the entire agreement and supersedes all prior negotiations and agreements.
+
+ACKNOWLEDGED AND AGREED:
+
+EMPLOYER: ___________________________  Date: _____________
+          HR Director
+          Innovation Tech Solutions
+
+EMPLOYEE: ___________________________  Date: _____________
+          Jessica Martinez

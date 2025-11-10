@@ -1,0 +1,254 @@
+SOFTWARE AS A SERVICE (SaaS) SUBSCRIPTION AGREEMENT
+
+This SaaS Subscription Agreement ("Agreement") is entered into as of April 10, 2025, between:
+
+PROVIDER: CloudMetrics Analytics Platform Inc.
+Address: 3000 Innovation Drive, Seattle, WA 98101
+Contact: Jennifer Wong, VP of Sales
+Email: j.wong@cloudmetrics.com
+Website: www.cloudmetrics.com
+
+SUBSCRIBER: DataDrive Marketing Solutions LLC
+Address: 450 Marketing Boulevard, Chicago, IL 60601
+Contact: Robert Johnson, Director of Technology
+Email: r.johnson@datadrive.com
+
+1. SUBSCRIPTION SERVICES
+
+1.1 Service Description
+Provider grants Subscriber access to the CloudMetrics Analytics Platform, a cloud-based business intelligence and data analytics solution including:
+- Real-time data visualization dashboards
+- Predictive analytics and machine learning models
+- Customer behavior tracking and segmentation
+- Multi-channel marketing attribution
+- API integrations with 200+ data sources
+- Custom report builder
+- Automated alert system
+- Mobile applications (iOS and Android)
+
+1.2 Subscription Tier: Enterprise Plan
+
+1.3 Service Features:
+- Up to 50 named users
+- 500GB data storage
+- 10 million data points per month
+- Unlimited dashboards and reports
+- Priority support (24/7)
+- Dedicated account manager
+- Quarterly business reviews
+- Custom integrations (up to 5)
+- Advanced security features
+- SSO/SAML integration
+- White-label options
+
+2. SUBSCRIPTION TERM AND RENEWAL
+
+2.1 Initial Term: 12 months commencing April 10, 2025
+
+2.2 Renewal: Automatically renews for successive 12-month periods unless either party provides written notice of non-renewal at least 60 days prior to expiration.
+
+2.3 Subscription Start Date: April 10, 2025
+2.4 Subscription End Date: April 9, 2026 (unless renewed)
+
+3. FEES AND PAYMENT
+
+3.1 Subscription Fees:
+Annual Subscription Fee: $84,000 ($7,000/month)
+Payment Schedule: Annual payment in advance
+Initial Payment Due: Within 10 days of Agreement execution
+
+3.2 Usage Overage Fees:
+- Additional users: $125/user/month
+- Additional storage (per 100GB): $500/month
+- Additional data points (per 1M): $200/month
+- Additional custom integrations: $2,500 each
+
+3.3 Professional Services:
+- Implementation and onboarding: $5,000 (one-time)
+- Training sessions: $1,500 per session
+- Custom development: $200/hour
+- Data migration services: $150/hour
+
+3.4 Payment Terms:
+- All fees payable in US Dollars
+- Payment by credit card, ACH, or wire transfer
+- Late payments subject to 1.5% monthly interest
+- Overdue amounts may result in service suspension
+
+3.5 Price Increases:
+Provider may increase fees upon renewal with 90 days written notice. Increases limited to 7% annually.
+
+4. SERVICE LEVEL AGREEMENT
+
+4.1 Uptime Guarantee: 99.9% monthly uptime (excluding scheduled maintenance)
+
+4.2 Scheduled Maintenance:
+- Monthly maintenance windows: 2nd Sunday, 2:00 AM - 6:00 AM Pacific
+- Notice: 7 days advance notice via email and dashboard
+- Emergency maintenance: As needed with best effort notice
+
+4.3 Support Response Times:
+Priority 1 (Critical - Service Down): 30 minutes
+Priority 2 (Major - Core Feature Impaired): 2 hours
+Priority 3 (Minor - Limited Impact): 8 business hours
+Priority 4 (General Question): 24 business hours
+
+4.4 Service Credits:
+- 99.5% - 99.9% uptime: 10% monthly fee credit
+- 99.0% - 99.5% uptime: 25% monthly fee credit
+- Below 99.0% uptime: 50% monthly fee credit
+
+Service credits are Subscriber's exclusive remedy for downtime.
+
+5. DATA AND SECURITY
+
+5.1 Data Ownership: Subscriber retains all rights to its data. Provider claims no ownership rights.
+
+5.2 Data Protection:
+- AES-256 encryption at rest
+- TLS 1.3 encryption in transit
+- SOC 2 Type II certified
+- ISO 27001 certified
+- GDPR compliant
+- CCPA compliant
+- Regular penetration testing
+- Annual security audits
+
+5.3 Data Backup:
+- Continuous backup with point-in-time recovery
+- 30-day backup retention
+- Geographic redundancy across 3 regions
+- Monthly backup restoration testing
+
+5.4 Data Location: Primary data center in US-West region with replication to US-East
+
+5.5 Data Portability: Subscriber may export data in standard formats (CSV, JSON, XML) at any time via dashboard or API.
+
+5.6 Data Deletion: Upon termination, Provider will delete Subscriber data within 30 days unless legally required to retain.
+
+6. ACCEPTABLE USE POLICY
+
+6.1 Subscriber Shall NOT:
+- Violate any laws or third-party rights
+- Transmit malware, viruses, or harmful code
+- Attempt unauthorized access to systems
+- Reverse engineer or decompile the Service
+- Resell or redistribute the Service
+- Use Service to send spam or unsolicited communications
+- Overload or disrupt Service infrastructure
+- Scrape or harvest data from other users
+- Store prohibited content (illegal, defamatory, infringing)
+
+6.2 Resource Limits: Subscriber shall not exceed allocated resources without upgrading subscription.
+
+6.3 Violation Response: Provider may suspend Service immediately upon violation, with notice to Subscriber.
+
+7. INTELLECTUAL PROPERTY
+
+7.1 Provider IP: Provider retains all rights to the Service, including software, algorithms, designs, and documentation.
+
+7.2 License Grant: Provider grants Subscriber a non-exclusive, non-transferable, worldwide license to access and use the Service during the term.
+
+7.3 Subscriber IP: Subscriber retains all rights to its pre-existing intellectual property and data.
+
+7.4 Feedback: Subscriber grants Provider a perpetual, royalty-free license to use any feedback or suggestions provided.
+
+7.5 Trademarks: Neither party may use the other's trademarks without prior written consent, except as necessary to perform under this Agreement.
+
+8. CONFIDENTIALITY
+
+8.1 Each party agrees to maintain confidentiality of the other's Confidential Information.
+
+8.2 Confidential Information includes: technical details, business strategies, customer data, pricing, and any information marked confidential.
+
+8.3 Obligations continue for 3 years following termination.
+
+9. WARRANTIES AND DISCLAIMERS
+
+9.1 Provider Warrants:
+- Service will materially conform to documentation
+- Service will be provided professionally
+- No known malware in Service
+
+9.2 DISCLAIMER: EXCEPT AS EXPRESSLY STATED, SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+
+9.3 No guarantee of specific results or outcomes from using the Service.
+
+10. LIMITATION OF LIABILITY
+
+10.1 Cap: Provider's total liability shall not exceed fees paid by Subscriber in the 12 months preceding the claim.
+
+10.2 Exclusions: Neither party liable for indirect, incidental, consequential, punitive, or special damages, including lost profits or data.
+
+10.3 Exceptions to Cap: Liability cap does not apply to:
+- Breach of confidentiality
+- Gross negligence or willful misconduct
+- Infringement of intellectual property
+- Violations of Acceptable Use Policy
+
+11. INDEMNIFICATION
+
+11.1 Provider Indemnity: Provider shall defend and indemnify Subscriber against claims that the Service infringes third-party intellectual property rights.
+
+11.2 Subscriber Indemnity: Subscriber shall defend and indemnify Provider against claims arising from:
+- Subscriber's data or content
+- Violation of Acceptable Use Policy
+- Breach of this Agreement
+
+12. TERMINATION
+
+12.1 Termination for Convenience: Either party may terminate at end of term with 60 days notice.
+
+12.2 Termination for Cause: Either party may terminate immediately if the other party:
+- Materially breaches and fails to cure within 30 days
+- Becomes insolvent or files bankruptcy
+- Ceases business operations
+
+12.3 Effect of Termination:
+- Access to Service terminates immediately
+- Outstanding fees become due
+- Each party returns/destroys Confidential Information
+- Subscriber exports data within 30 days
+- Accrued rights and obligations survive
+
+12.4 No Refunds: Fees are non-refundable except for Service credits under SLA.
+
+13. GENERAL PROVISIONS
+
+13.1 Governing Law: Washington State law, excluding conflicts of law principles.
+
+13.2 Dispute Resolution:
+- Good faith negotiations (30 days)
+- Mediation in Seattle, WA (30 days)
+- Binding arbitration under AAA Commercial Rules
+
+13.3 Entire Agreement: This Agreement constitutes entire agreement and supersedes all prior agreements.
+
+13.4 Amendment: Must be in writing and signed by both parties.
+
+13.5 Assignment: Neither party may assign without consent, except to successor in merger/acquisition.
+
+13.6 Force Majeure: Neither party liable for delays due to circumstances beyond reasonable control.
+
+13.7 Notices: Written notices to addresses above via email (confirmed) or certified mail.
+
+13.8 Independent Contractors: Parties are independent contractors, not partners or joint venturers.
+
+13.9 Severability: Invalid provisions severed; remaining provisions remain in effect.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement.
+
+PROVIDER: CloudMetrics Analytics Platform Inc.
+
+Signature: _________________________
+Name: Jennifer Wong
+Title: VP of Sales
+Date: April 10, 2025
+
+
+SUBSCRIBER: DataDrive Marketing Solutions LLC
+
+Signature: _________________________
+Name: Robert Johnson
+Title: Director of Technology
+Date: April 10, 2025
