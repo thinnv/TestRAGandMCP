@@ -132,4 +132,42 @@ public class DocumentParserTools
             });
         }
     }
+
+    [McpServerTool]
+    [Description("Test AI connectivity for document parsing.")]
+    public async Task<string> TestAIConnection()
+    {
+        try
+        {
+            _logger.LogInformation("MCP Tool: TestAIConnection called");
+
+            var parsingService = _parsingService as DocumentParsingService;
+            if (parsingService == null)
+            {
+                return System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "DocumentParsingService not available"
+                });
+            }
+
+            var isConnected = await parsingService.TestAIConnectionAsync();
+
+            return System.Text.Json.JsonSerializer.Serialize(new
+            {
+                success = true,
+                aiConnected = isConnected,
+                message = isConnected ? "AI connection successful" : "AI connection failed - using rule-based processing"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in TestAIConnection MCP tool");
+            return System.Text.Json.JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = ex.Message
+            });
+        }
+    }
 }

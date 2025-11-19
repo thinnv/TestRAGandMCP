@@ -62,11 +62,23 @@ app.MapDefaultEndpoints();
 // Map MCP endpoint using official package
 app.MapMcp();
 
-// Ensure database is created
+// Ensure database is created and initialize blob storage
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<DocumentContext>();
     await context.Database.EnsureCreatedAsync();
+
+    // Initialize blob storage container
+    var documentService = scope.ServiceProvider.GetRequiredService<IDocumentUploadService>();
+    try
+    {
+        await documentService.EnsureBlobStorageInitializedAsync();
+        app.Logger.LogInformation("Blob storage initialized successfully");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Failed to initialize blob storage during startup - will be created on first upload");
+    }
 }
 
 app.Run();

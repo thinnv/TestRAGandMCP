@@ -1,4 +1,4 @@
-using ContractProcessingSystem.DocumentUpload.Services;
+using ContractProcessingSystem.Shared.Services;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ContractProcessingSystem.DocumentUpload.Controllers;
@@ -62,6 +62,58 @@ public class DocumentsController : ControllerBase
         return Ok(document);
     }
 
+    [HttpGet("{id:guid}/content")]
+    public async Task<IActionResult> GetDocumentContent(Guid id)
+    {
+        try
+        {
+            var document = await _documentService.GetDocumentAsync(id);
+            if (document == null)
+            {
+                return NotFound();
+            }
+
+            var content = await _documentService.GetDocumentContentAsync(id);
+            
+            return File(content, document.ContentType, document.FileName);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound("Document content not found in storage");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get document content for {DocumentId}", id);
+            return StatusCode(500, "Internal server error occurred while retrieving document content");
+        }
+    }
+
+    [HttpGet("{id:guid}/download")]
+    public async Task<IActionResult> DownloadDocument(Guid id)
+    {
+        try
+        {
+            var document = await _documentService.GetDocumentAsync(id);
+            if (document == null)
+            {
+                return NotFound();
+            }
+
+            var content = await _documentService.GetDocumentContentAsync(id);
+            
+            return File(content, "application/octet-stream", document.FileName);
+        }
+        catch (FileNotFoundException)
+        {
+            return NotFound("Document content not found in storage");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to download document {DocumentId}", id);
+            return StatusCode(500, "Internal server error occurred while downloading document");
+        }
+    }
+
     [HttpGet]
     public async Task<ActionResult<IEnumerable<ContractDocument>>> GetDocuments(
         [FromQuery] int page = 1, 
@@ -86,6 +138,46 @@ public class DocumentsController : ControllerBase
         }
 
         return NoContent();
+    }
+
+    [HttpPost("ensure-metadata")]
+    public async Task<ActionResult<object>> EnsureAllMetadata()
+    {
+        try
+        {
+            var createdCount = await _documentService.EnsureAllDocumentsHaveMetadataAsync();
+            return Ok(new 
+            { 
+                message = $"Ensured metadata exists for all documents", 
+                createdMetadataRecords = createdCount,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to ensure metadata for all documents");
+            return StatusCode(500, "Internal server error occurred while ensuring metadata");
+        }
+    }
+
+    [HttpPost("ensure-storage")]
+    public async Task<ActionResult<object>> EnsureBlobStorage()
+    {
+        try
+        {
+            var created = await _documentService.EnsureBlobStorageInitializedAsync();
+            return Ok(new 
+            { 
+                message = created ? "Blob storage container created" : "Blob storage container already exists",
+                containerCreated = created,
+                timestamp = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to ensure blob storage initialization");
+            return StatusCode(500, "Internal server error occurred while ensuring blob storage");
+        }
     }
 
     [HttpGet("health")]

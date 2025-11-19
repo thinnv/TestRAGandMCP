@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
+using ContractProcessingSystem.Shared.Models;
 
 namespace ContractProcessingSystem.DocumentUpload.Data;
 
@@ -44,7 +45,7 @@ public class DocumentContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasOne<ContractDocumentEntity>()
-                .WithOne()
+                .WithOne(d => d.Metadata)
                 .HasForeignKey<ContractMetadataEntity>(e => e.DocumentId);
             entity.Property(e => e.Title).HasMaxLength(500);
             entity.Property(e => e.ContractType).HasMaxLength(100);

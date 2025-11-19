@@ -112,7 +112,7 @@ public static class LLMProviderServiceExtensions
                 Type = LLMProviderType.Gemini,
                 Name = "Gemini",
                 ApiKey = geminiApiKey,
-                DefaultChatModel = "gemini-1.5-flash",
+                DefaultChatModel = "gemini-pro", // Updated to use stable model name
                 DefaultEmbeddingModel = "text-embedding-004",
                 IsEnabled = true,
                 Priority = 2

@@ -1,3 +1,5 @@
+using ContractProcessingSystem.Shared.Models;
+
 namespace ContractProcessingSystem.Shared.Services;
 
 public interface IDocumentUploadService
@@ -38,6 +40,17 @@ public interface IDocumentUploadService
     Task<byte[]> GetDocumentContentAsync(Guid documentId);
     
     Task<object> GetUploadStatisticsAsync(string period = "month", string groupBy = "status");
+    
+    // New method for parsing service integration
+    Task<bool> CreateOrUpdateMetadataFromParsingAsync(
+        Guid documentId,
+        ContractMetadata parsedMetadata);
+    
+    // Utility method to ensure all documents have metadata
+    Task<int> EnsureAllDocumentsHaveMetadataAsync();
+    
+    // Utility method to ensure blob storage is initialized
+    Task<bool> EnsureBlobStorageInitializedAsync();
 }
 
 public interface IDocumentParsingService

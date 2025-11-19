@@ -154,6 +154,27 @@ public class EnhancedDocumentUploadMCPController : OfficialMCPServerBase
                     },
                     required = new string[0]
                 }
+            },
+
+            new OfficialMCPTool
+            {
+                Name = "get_file_content",
+                Description = "Download the raw content of an uploaded file",
+                InputSchema = new
+                {
+                    type = "object",
+                    properties = new
+                    {
+                        fileId = new { type = "string", description = "GUID of the file to download content for" },
+                        encoding = new { 
+                            type = "string", 
+                            description = "Content encoding format",
+                            @enum = new[] { "base64", "text" },
+                            @default = "base64"
+                        }
+                    },
+                    required = new[] { "fileId" }
+                }
             }
         };
     }
@@ -175,6 +196,7 @@ public class EnhancedDocumentUploadMCPController : OfficialMCPServerBase
                 "delete_contract_file" => await HandleDeleteFile(arguments),
                 "update_file_metadata" => await HandleUpdateMetadata(arguments),
                 "get_upload_statistics" => await HandleGetStatistics(arguments),
+                "get_file_content" => await HandleGetFileContent(arguments),
                 _ => OfficialMCPToolResult.Error($"Unknown tool: {toolName}", -32601)
             };
         }
@@ -469,6 +491,52 @@ public class EnhancedDocumentUploadMCPController : OfficialMCPServerBase
         {
             Logger.LogError(ex, "Error getting statistics via official MCP");
             return OfficialMCPToolResult.Error($"Failed to get statistics: {ex.Message}", -32000);
+        }
+    }
+
+    private async Task<OfficialMCPToolResult> HandleGetFileContent(JsonElement arguments)
+    {
+        try
+        {
+            var fileIdStr = arguments.GetProperty("fileId").GetString()!;
+            if (!Guid.TryParse(fileIdStr, out var fileId))
+            {
+                return OfficialMCPToolResult.Error("Invalid file ID format", -32602);
+            }
+
+            var encoding = arguments.TryGetProperty("encoding", out var encodingProp) ? 
+                encodingProp.GetString() : "base64";
+
+            var document = await _documentService.GetDocumentAsync(fileId);
+            if (document == null)
+            {
+                return OfficialMCPToolResult.Error("File not found", -32002);
+            }
+
+            var content = await _documentService.GetDocumentContentAsync(fileId);
+
+            var result = new
+            {
+                id = document.Id,
+                fileName = document.FileName,
+                contentType = document.ContentType,
+                fileSize = document.FileSize,
+                encoding = encoding,
+                content = encoding == "base64" ? Convert.ToBase64String(content) : 
+                         document.ContentType.StartsWith("text/") ? System.Text.Encoding.UTF8.GetString(content) :
+                         Convert.ToBase64String(content), // fallback to base64 for non-text
+                mcpCompliant = true,
+                downloadedAt = DateTime.UtcNow
+            };
+
+            Logger.LogInformation("File content downloaded via official MCP: {FileId}", fileId);
+
+            return OfficialMCPToolResult.Success(result);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Error getting file content via official MCP");
+            return OfficialMCPToolResult.Error($"Failed to get file content: {ex.Message}", -32000);
         }
     }
 

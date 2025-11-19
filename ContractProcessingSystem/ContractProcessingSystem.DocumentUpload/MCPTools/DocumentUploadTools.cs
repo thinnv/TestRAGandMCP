@@ -93,12 +93,77 @@ public class DocumentUploadTools
             return System.Text.Json.JsonSerializer.Serialize(new
             {
                 success = true,
-                document
+                document = new
+                {
+                    id = document.Id,
+                    filename = document.FileName,
+                    contentType = document.ContentType,
+                    size = document.FileSize,
+                    uploadedAt = document.UploadedAt,
+                    uploadedBy = document.UploadedBy,
+                    status = document.Status.ToString(),
+                    lastModified = document.LastModified,
+                    metadata = document.Metadata
+                }
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error in GetDocument MCP tool");
+            return System.Text.Json.JsonSerializer.Serialize(new
+            {
+                success = false,
+                error = ex.Message
+            });
+        }
+    }
+
+    [McpServerTool]
+    [Description("Download the content of a document by its ID. Returns base64 encoded content.")]
+    public async Task<string> GetDocumentContent(
+        [Description("The document ID (GUID) to download content for")] string documentId)
+    {
+        try
+        {
+            _logger.LogInformation("MCP Tool: GetDocumentContent called for {DocumentId}", documentId);
+
+            if (!Guid.TryParse(documentId, out var docGuid))
+            {
+                return System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Invalid document ID format"
+                });
+            }
+
+            var document = await _uploadService.GetDocumentAsync(docGuid);
+            if (document == null)
+            {
+                return System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    success = false,
+                    error = "Document not found"
+                });
+            }
+
+            var content = await _uploadService.GetDocumentContentAsync(docGuid);
+            var base64Content = Convert.ToBase64String(content);
+
+            return System.Text.Json.JsonSerializer.Serialize(new
+            {
+                success = true,
+                documentId = document.Id,
+                filename = document.FileName,
+                contentType = document.ContentType,
+                size = document.FileSize,
+                encoding = "base64",
+                content = base64Content,
+                downloadedAt = DateTime.UtcNow
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in GetDocumentContent MCP tool");
             return System.Text.Json.JsonSerializer.Serialize(new
             {
                 success = false,

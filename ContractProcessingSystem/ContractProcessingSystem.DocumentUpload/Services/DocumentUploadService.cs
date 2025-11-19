@@ -1,5 +1,7 @@
 using Azure.Storage.Blobs;
 using ContractProcessingSystem.DocumentUpload.Data;
+using ContractProcessingSystem.Shared.Models;
+using ContractProcessingSystem.Shared.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace ContractProcessingSystem.DocumentUpload.Services;
@@ -46,11 +48,26 @@ public class DocumentUploadService : IDocumentUploadService
             var blobPath = await UploadToBlobStorageAsync(documentEntity.Id, fileName, content, contentType);
             documentEntity.BlobPath = blobPath;
 
+            // Create basic metadata record for the document
+            documentEntity.Metadata = new ContractMetadataEntity
+            {
+                DocumentId = documentEntity.Id,
+                Title = fileName, // Use filename as initial title
+                Parties = new List<string>(),
+                KeyTerms = new List<string>(),
+                CustomFields = new Dictionary<string, object>
+                {
+                    ["uploadSource"] = "direct_upload",
+                    ["originalFileName"] = fileName
+                }
+            };
+
             // Save to database
             _context.Documents.Add(documentEntity);
+            _context.Metadata.Add(documentEntity.Metadata);
             await _context.SaveChangesAsync();
 
-            _logger.LogInformation("Document {DocumentId} uploaded successfully by {User}", 
+            _logger.LogInformation("Document {DocumentId} uploaded successfully by {User} with basic metadata", 
                 documentEntity.Id, uploadedBy);
 
             return MapToContractDocument(documentEntity);
@@ -64,11 +81,30 @@ public class DocumentUploadService : IDocumentUploadService
 
     public async Task<ContractDocument?> GetDocumentAsync(Guid documentId)
     {
+        _logger.LogDebug("Getting document {DocumentId} with metadata", documentId);
+        
         var entity = await _context.Documents
             .Include(d => d.Metadata)
             .FirstOrDefaultAsync(d => d.Id == documentId);
 
-        return entity != null ? MapToContractDocument(entity) : null;
+        if (entity == null)
+        {
+            _logger.LogWarning("Document {DocumentId} not found", documentId);
+            return null;
+        }
+
+        _logger.LogDebug("Document {DocumentId} found. Metadata is {MetadataStatus}", 
+            documentId, entity.Metadata == null ? "NULL" : "PRESENT");
+
+        if (entity.Metadata != null)
+        {
+            _logger.LogDebug("Metadata details: Title={Title}, Parties={PartyCount}, KeyTerms={KeyTermsCount}", 
+                entity.Metadata.Title ?? "NULL", 
+                entity.Metadata.Parties?.Count ?? 0, 
+                entity.Metadata.KeyTerms?.Count ?? 0);
+        }
+
+        return MapToContractDocument(entity);
     }
 
     public async Task<IEnumerable<ContractDocument>> GetDocumentsAsync(int page = 1, int pageSize = 20)
@@ -76,6 +112,7 @@ public class DocumentUploadService : IDocumentUploadService
         var skip = (page - 1) * pageSize;
         
         var entities = await _context.Documents
+            .Include(d => d.Metadata)
             .OrderByDescending(d => d.UploadedAt)
             .Skip(skip)
             .Take(pageSize)
@@ -150,7 +187,9 @@ public class DocumentUploadService : IDocumentUploadService
     {
         try
         {
-            var query = _context.Documents.AsQueryable();
+            var query = _context.Documents
+                .Include(d => d.Metadata)
+                .AsQueryable();
 
             if (!string.IsNullOrEmpty(uploadedBy))
             {
@@ -185,17 +224,40 @@ public class DocumentUploadService : IDocumentUploadService
     {
         try
         {
-            var document = await _context.Documents.FindAsync(documentId);
+            var document = await _context.Documents
+                .Include(d => d.Metadata)
+                .FirstOrDefaultAsync(d => d.Id == documentId);
+            
             if (document == null)
             {
                 return false;
             }
 
-            // Update document properties if provided
+            // Create metadata if it doesn't exist
+            if (document.Metadata == null)
+            {
+                document.Metadata = new ContractMetadataEntity
+                {
+                    DocumentId = documentId
+                };
+                _context.Metadata.Add(document.Metadata);
+            }
+
+            // Update metadata properties if provided
             if (!string.IsNullOrEmpty(title))
             {
-                // You might want to add a Title field to the entity
-                // For now, we'll store it in a custom metadata field
+                document.Metadata.Title = title;
+            }
+
+            if (tags != null)
+            {
+                document.Metadata.KeyTerms = tags;
+            }
+
+            if (!string.IsNullOrEmpty(notes))
+            {
+                // Store notes in custom fields
+                document.Metadata.CustomFields["notes"] = notes;
             }
 
             document.LastModified = DateTime.UtcNow;
@@ -222,7 +284,18 @@ public class DocumentUploadService : IDocumentUploadService
             }
 
             var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            
+            // Ensure container exists before trying to access blobs
+            await containerClient.CreateIfNotExistsAsync();
+            
             var blobClient = containerClient.GetBlobClient(document.BlobPath);
+
+            // Check if blob exists before trying to download
+            var exists = await blobClient.ExistsAsync();
+            if (!exists.Value)
+            {
+                throw new FileNotFoundException($"Document content not found in storage: {documentId}");
+            }
 
             var response = await blobClient.DownloadAsync();
             using var memoryStream = new MemoryStream();
@@ -288,35 +361,222 @@ public class DocumentUploadService : IDocumentUploadService
         }
     }
 
+    public async Task<bool> CreateOrUpdateMetadataFromParsingAsync(
+        Guid documentId,
+        ContractMetadata parsedMetadata)
+    {
+        try
+        {
+            var document = await _context.Documents
+                .Include(d => d.Metadata)
+                .FirstOrDefaultAsync(d => d.Id == documentId);
+            
+            if (document == null)
+            {
+                return false;
+            }
+
+            // Create or update metadata
+            if (document.Metadata == null)
+            {
+                document.Metadata = new ContractMetadataEntity
+                {
+                    DocumentId = documentId
+                };
+                _context.Metadata.Add(document.Metadata);
+            }
+
+            // Update with parsed metadata
+            if (!string.IsNullOrEmpty(parsedMetadata.Title))
+            {
+                document.Metadata.Title = parsedMetadata.Title;
+            }
+
+            if (parsedMetadata.ContractDate.HasValue)
+            {
+                document.Metadata.ContractDate = parsedMetadata.ContractDate;
+            }
+
+            if (parsedMetadata.ExpirationDate.HasValue)
+            {
+                document.Metadata.ExpirationDate = parsedMetadata.ExpirationDate;
+            }
+
+            if (parsedMetadata.ContractValue.HasValue)
+            {
+                document.Metadata.ContractValue = parsedMetadata.ContractValue;
+            }
+
+            if (!string.IsNullOrEmpty(parsedMetadata.Currency))
+            {
+                document.Metadata.Currency = parsedMetadata.Currency;
+            }
+
+            if (parsedMetadata.Parties?.Any() == true)
+            {
+                document.Metadata.Parties = parsedMetadata.Parties;
+            }
+
+            if (parsedMetadata.KeyTerms?.Any() == true)
+            {
+                document.Metadata.KeyTerms = parsedMetadata.KeyTerms;
+            }
+
+            if (!string.IsNullOrEmpty(parsedMetadata.ContractType))
+            {
+                document.Metadata.ContractType = parsedMetadata.ContractType;
+            }
+
+            if (parsedMetadata.CustomFields?.Any() == true)
+            {
+                foreach (var field in parsedMetadata.CustomFields)
+                {
+                    document.Metadata.CustomFields[field.Key] = field.Value;
+                }
+            }
+
+            document.LastModified = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Created/updated metadata from parsing for document {DocumentId}", documentId);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating/updating metadata from parsing for {DocumentId}", documentId);
+            throw;
+        }
+    }
+
+    public async Task<int> EnsureAllDocumentsHaveMetadataAsync()
+    {
+        try
+        {
+            var documentsWithoutMetadata = await _context.Documents
+                .Where(d => d.Metadata == null)
+                .ToListAsync();
+
+            int createdCount = 0;
+            foreach (var document in documentsWithoutMetadata)
+            {
+                var metadata = new ContractMetadataEntity
+                {
+                    DocumentId = document.Id,
+                    Title = document.FileName,
+                    Parties = new List<string>(),
+                    KeyTerms = new List<string>(),
+                    CustomFields = new Dictionary<string, object>
+                    {
+                        ["created"] = "auto_generated",
+                        ["originalFileName"] = document.FileName
+                    }
+                };
+
+                _context.Metadata.Add(metadata);
+                createdCount++;
+            }
+
+            if (createdCount > 0)
+            {
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Created metadata for {Count} documents that were missing it", createdCount);
+            }
+
+            return createdCount;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error ensuring documents have metadata");
+            throw;
+        }
+    }
+
+    public async Task<bool> EnsureBlobStorageInitializedAsync()
+    {
+        try
+        {
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            var created = await containerClient.CreateIfNotExistsAsync();
+            
+            if (created?.Value != null)
+            {
+                _logger.LogInformation("Created blob container: {ContainerName}", _containerName);
+                return true;
+            }
+            
+            _logger.LogDebug("Blob container already exists: {ContainerName}", _containerName);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error ensuring blob storage container exists");
+            throw;
+        }
+    }
+
     private async Task<string> UploadToBlobStorageAsync(Guid documentId, string fileName, Stream content, string contentType)
     {
-        var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
-        await containerClient.CreateIfNotExistsAsync();
-
-        var blobName = $"{documentId:N}/{fileName}";
-        var blobClient = containerClient.GetBlobClient(blobName);
-
-        content.Position = 0;
-        await blobClient.UploadAsync(content, new Azure.Storage.Blobs.Models.BlobUploadOptions
+        try
         {
-            HttpHeaders = new Azure.Storage.Blobs.Models.BlobHttpHeaders
+            var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+            var containerResult = await containerClient.CreateIfNotExistsAsync();
+            
+            if (containerResult?.Value != null)
             {
-                ContentType = contentType
+                _logger.LogInformation("Created blob container '{ContainerName}' for document upload", _containerName);
             }
-        });
 
-        return blobName;
+            var blobName = $"{documentId:N}/{fileName}";
+            var blobClient = containerClient.GetBlobClient(blobName);
+
+            content.Position = 0;
+            await blobClient.UploadAsync(content, new Azure.Storage.Blobs.Models.BlobUploadOptions
+            {
+                HttpHeaders = new Azure.Storage.Blobs.Models.BlobHttpHeaders
+                {
+                    ContentType = contentType
+                }
+            });
+
+            _logger.LogDebug("Uploaded blob '{BlobName}' to container '{ContainerName}'", blobName, _containerName);
+            return blobName;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading to blob storage for document {DocumentId}", documentId);
+            throw;
+        }
     }
 
     private async Task DeleteFromBlobStorageAsync(string blobPath)
     {
         var containerClient = _blobServiceClient.GetBlobContainerClient(_containerName);
+        
+        // Ensure container exists before trying to delete (defensive programming)
+        await containerClient.CreateIfNotExistsAsync();
+        
         var blobClient = containerClient.GetBlobClient(blobPath);
         await blobClient.DeleteIfExistsAsync();
     }
 
     private static ContractDocument MapToContractDocument(ContractDocumentEntity entity)
     {
+        ContractMetadata? metadata = null;
+        if (entity.Metadata != null)
+        {
+            metadata = new ContractMetadata(
+                entity.Metadata.Title,
+                entity.Metadata.ContractDate,
+                entity.Metadata.ExpirationDate,
+                entity.Metadata.ContractValue,
+                entity.Metadata.Currency,
+                entity.Metadata.Parties,
+                entity.Metadata.KeyTerms,
+                entity.Metadata.ContractType,
+                entity.Metadata.CustomFields
+            );
+        }
+
         return new ContractDocument(
             entity.Id,
             entity.FileName,
@@ -326,7 +586,8 @@ public class DocumentUploadService : IDocumentUploadService
             entity.LastModified,
             entity.UploadedBy,
             entity.Status,
-            entity.BlobPath
+            entity.BlobPath,
+            metadata
         );
     }
 }
