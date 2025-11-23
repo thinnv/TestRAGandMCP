@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text;
 using ContractProcessingSystem.Shared.AI;
 
@@ -109,10 +110,13 @@ public class GeminiProvider : ILLMProvider
         try
         {
             options ??= new EmbeddingOptions();
-            var model = options.Model ?? _config.DefaultEmbeddingModel;
+            var model = options.Model ?? _config.DefaultEmbeddingModel ?? "text-embedding-004";
 
             // Truncate text if too long
             var truncatedText = TruncateTextForEmbedding(text, options.MaxInputTokens);
+
+            _logger.LogDebug("Generating Gemini embedding with model: {Model}, text length: {Length}", 
+                model, truncatedText.Length);
 
             var requestBody = new
             {
@@ -134,22 +138,43 @@ public class GeminiProvider : ILLMProvider
             var content = new StringContent(json, Encoding.UTF8, "application/json");
             var url = $"{BaseUrl}/models/{model}:embedContent?key={_config.ApiKey}";
 
+            _logger.LogDebug("Sending embedding request to: {Url}", url);
+
             var response = await _httpClient.PostAsync(url, content);
             var responseContent = await response.Content.ReadAsStringAsync();
 
+            _logger.LogDebug("Gemini API response status: {StatusCode}", response.StatusCode);
+            _logger.LogDebug("Response content: {Content}", responseContent);
+
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Gemini embedding request failed: {StatusCode} - {Content}", response.StatusCode, responseContent);
+                _logger.LogError("Gemini embedding request failed: {StatusCode} - {Content}", 
+                    response.StatusCode, responseContent);
                 IsAvailable = false;
-                throw new LLMException(ProviderName, $"Embedding request failed: {response.StatusCode}");
+                throw new LLMException(ProviderName, $"Embedding request failed: {response.StatusCode}. Response: {responseContent}");
             }
 
-            var geminiResponse = JsonSerializer.Deserialize<GeminiEmbeddingResponse>(responseContent);
-            
-            if (geminiResponse?.Embedding?.Values == null)
+            // Try to deserialize with case-insensitive property matching
+            var options2 = new JsonSerializerOptions
             {
-                throw new LLMException(ProviderName, "No embedding generated from Gemini");
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            var geminiResponse = JsonSerializer.Deserialize<GeminiEmbeddingResponse>(responseContent, options2);
+            
+            _logger.LogDebug("Deserialized response: Embedding={HasEmbedding}, Values={HasValues}", 
+                geminiResponse?.Embedding != null, 
+                geminiResponse?.Embedding?.Values != null);
+
+            if (geminiResponse?.Embedding?.Values == null || geminiResponse.Embedding.Values.Length == 0)
+            {
+                _logger.LogError("No embedding values returned from Gemini. Raw response: {Response}", responseContent);
+                throw new LLMException(ProviderName, $"No embedding generated from Gemini. Response: {responseContent}");
             }
+
+            _logger.LogDebug("Successfully generated embedding with {Dimensions} dimensions", 
+                geminiResponse.Embedding.Values.Length);
 
             return geminiResponse.Embedding.Values;
         }
@@ -173,8 +198,85 @@ public class GeminiProvider : ILLMProvider
 
     public async Task<float[][]> GenerateEmbeddingsAsync(IEnumerable<string> texts, EmbeddingOptions? options = null)
     {
-        // Gemini API doesn't support batch embeddings, so we'll process them sequentially
+        try
+        {
+            options ??= new EmbeddingOptions();
+            var model = options.Model ?? _config.DefaultEmbeddingModel ?? "gemini-embedding-001";
+            var textsList = texts.ToList();
+
+            _logger.LogInformation("Generating {Count} embeddings with Gemini model: {Model}", 
+                textsList.Count, model);
+
+            // Gemini supports batch embeddings with batchEmbedContents endpoint
+            var requests = textsList.Select(text => new
+            {
+                model = $"models/{model}",
+                content = new
+                {
+                    parts = new[]
+                    {
+                        new { text = TruncateTextForEmbedding(text, options.MaxInputTokens) }
+                    }
+                }
+            }).ToList();
+
+            var requestBody = new { requests };
+
+            var json = JsonSerializer.Serialize(requestBody, new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            });
+
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var url = $"{BaseUrl}/models/{model}:batchEmbedContents?key={_config.ApiKey}";
+
+            _logger.LogDebug("Sending batch embedding request to: {Url}", url);
+
+            var response = await _httpClient.PostAsync(url, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("Gemini batch embedding failed ({StatusCode}), falling back to sequential processing", 
+                    response.StatusCode);
+                
+                // Fallback to sequential processing
+                return await GenerateEmbeddingsSequentiallyAsync(textsList, options);
+            }
+
+            var geminiResponse = JsonSerializer.Deserialize<GeminiBatchEmbeddingResponse>(responseContent);
+            
+            if (geminiResponse?.Embeddings == null || !geminiResponse.Embeddings.Any())
+            {
+                _logger.LogWarning("No embeddings in batch response, falling back to sequential processing");
+                return await GenerateEmbeddingsSequentiallyAsync(textsList, options);
+            }
+
+            var results = geminiResponse.Embeddings
+                .Select(e => e.Values ?? new float[768])
+                .ToArray();
+
+            _logger.LogInformation("Successfully generated {Count} embeddings in batch", results.Length);
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch embedding generation failed, falling back to sequential processing");
+            
+            // Fallback to sequential processing
+            return await GenerateEmbeddingsSequentiallyAsync(texts.ToList(), options);
+        }
+    }
+
+    private async Task<float[][]> GenerateEmbeddingsSequentiallyAsync(
+        List<string> texts, 
+        EmbeddingOptions? options)
+    {
+        _logger.LogInformation("Processing {Count} embeddings sequentially", texts.Count);
+        
         var results = new List<float[]>();
+        var embeddingSize = GetExpectedEmbeddingSize(options?.Model ?? _config.DefaultEmbeddingModel);
         
         foreach (var text in texts)
         {
@@ -187,14 +289,24 @@ public class GeminiProvider : ILLMProvider
             {
                 _logger.LogWarning(ex, "Failed to generate embedding for text, using zero vector");
                 // Return a zero vector as fallback
-                var embeddingSize = options?.AdditionalProperties.ContainsKey("embeddingSize") == true 
-                    ? (int)options.AdditionalProperties["embeddingSize"] 
-                    : 768; // Default Gemini embedding size
                 results.Add(new float[embeddingSize]);
             }
         }
 
         return results.ToArray();
+    }
+
+    private int GetExpectedEmbeddingSize(string? model)
+    {
+        // Gemini embedding model dimensions
+        return model switch
+        {
+            "text-embedding-004" => 768,
+            "embedding-001" => 768,
+            "models/text-embedding-004" => 768,
+            "models/embedding-001" => 768,
+            _ => 768 // Default Gemini embedding size
+        };
     }
 
     private static string TruncateTextForEmbedding(string text, int maxTokens)
@@ -217,31 +329,43 @@ public class GeminiProvider : ILLMProvider
     // Response models for Gemini API
     private class GeminiResponse
     {
+        [JsonPropertyName("candidates")]
         public GeminiCandidate[]? Candidates { get; set; }
     }
 
     private class GeminiCandidate
     {
+        [JsonPropertyName("content")]
         public GeminiContent? Content { get; set; }
     }
 
     private class GeminiContent
     {
+        [JsonPropertyName("parts")]
         public GeminiPart[]? Parts { get; set; }
     }
 
     private class GeminiPart
     {
+        [JsonPropertyName("text")]
         public string? Text { get; set; }
     }
 
     private class GeminiEmbeddingResponse
     {
+        [JsonPropertyName("embedding")]
         public GeminiEmbedding? Embedding { get; set; }
     }
 
     private class GeminiEmbedding
     {
+        [JsonPropertyName("values")]
         public float[]? Values { get; set; }
+    }
+
+    private class GeminiBatchEmbeddingResponse
+    {
+        [JsonPropertyName("embeddings")]
+        public GeminiEmbedding[]? Embeddings { get; set; }
     }
 }

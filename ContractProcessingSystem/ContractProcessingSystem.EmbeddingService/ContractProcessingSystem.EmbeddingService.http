@@ -1,6 +1,78 @@
-@ContractProcessingSystem.EmbeddingService_HostAddress = http://localhost:5212
+@ContractProcessingSystem.EmbeddingService_HostAddress = https://localhost:7002
 
-GET {{ContractProcessingSystem.EmbeddingService_HostAddress}}/weatherforecast/
-Accept: application/json
+### Health Check
+GET {{ContractProcessingSystem.EmbeddingService_HostAddress}}/health
 
-###
+### Test Gemini Embedding - Single Text (text-embedding-004)
+# This should return 768-dimensional vector
+POST {{ContractProcessingSystem.EmbeddingService_HostAddress}}/api/embeddings/generate-single
+Content-Type: application/json
+
+"This is a test contract clause about payment terms and delivery schedules."
+
+### Test Gemini Embedding - Very Short Text
+# Test with minimal text to ensure API works
+POST {{ContractProcessingSystem.EmbeddingService_HostAddress}}/api/embeddings/generate-single
+Content-Type: application/json
+
+"payment"
+
+### Test Gemini Embedding - Medium Text
+POST {{ContractProcessingSystem.EmbeddingService_HostAddress}}/api/embeddings/generate-single
+Content-Type: application/json
+
+"Section 1: Payment Terms. The client agrees to pay all invoices within 30 days of receipt. Late payments will incur a 5% monthly interest charge."
+
+### Test Gemini Embedding - Batch (Multiple Chunks)
+POST {{ContractProcessingSystem.EmbeddingService_HostAddress}}/api/embeddings/generate
+Content-Type: application/json
+
+[
+  {
+    "id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "documentId": "8c3b2e71-4f9a-4d2b-9e1f-5a6c7d8e9f0a",
+    "content": "Section 1: Payment Terms. The client agrees to pay all invoices within 30 days of receipt.",
+    "chunkIndex": 0,
+    "startPosition": 0,
+    "endPosition": 100,
+    "type": "Clause",
+    "metadata": {}
+  },
+  {
+    "id": "4fa85f64-5717-4562-b3fc-2c963f66afa7",
+    "documentId": "8c3b2e71-4f9a-4d2b-9e1f-5a6c7d8e9f0a",
+    "content": "Section 2: Delivery Schedule. All deliverables must be completed according to the agreed timeline.",
+    "chunkIndex": 1,
+    "startPosition": 100,
+    "endPosition": 200,
+    "type": "Clause",
+    "metadata": {}
+  }
+]
+
+### Get Embedding Status
+GET {{ContractProcessingSystem.EmbeddingService_HostAddress}}/api/embeddings/status/8c3b2e71-4f9a-4d2b-9e1f-5a6c7d8e9f0a
+
+### Debug: Test Direct Gemini API Call
+# This bypasses the service to test if API key and model work
+# Copy your API key and run this directly
+POST https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=
+Content-Type: application/json
+
+{
+  "model": "models/text-embedding-004",
+  "content": {
+    "parts": [
+      {
+        "text": "Hello world"
+      }
+    ]
+  }
+}
+
+### Verify Embedding Dimensions (text-embedding-004)
+# Should return 768 dimensions
+POST {{ContractProcessingSystem.EmbeddingService_HostAddress}}/api/embeddings/generate-single
+Content-Type: application/json
+
+"test embedding dimension check for Gemini text-embedding-004"

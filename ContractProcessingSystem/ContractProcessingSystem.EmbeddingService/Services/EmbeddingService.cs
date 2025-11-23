@@ -9,29 +9,26 @@ namespace ContractProcessingSystem.EmbeddingService.Services;
 public class EmbeddingService : IEmbeddingService
 {
     private readonly ILLMProviderFactory _providerFactory;
-#pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates
-    private readonly ITextEmbeddingGenerationService _embeddingService;
-#pragma warning restore SKEXP0001
     private readonly IMemoryCache _cache;
     private readonly ILogger<EmbeddingService> _logger;
     private readonly ConcurrentDictionary<Guid, ProcessingStatus> _processingStatus;
     private readonly string _embeddingModel;
+    private readonly IConfiguration _configuration;
 
     public EmbeddingService(
         ILLMProviderFactory providerFactory,
-#pragma warning disable SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates
-        ITextEmbeddingGenerationService embeddingService,
-#pragma warning restore SKEXP0001
         IMemoryCache cache,
         ILogger<EmbeddingService> logger,
         IConfiguration configuration)
     {
         _providerFactory = providerFactory;
-        _embeddingService = embeddingService;
         _cache = cache;
         _logger = logger;
+        _configuration = configuration;
         _processingStatus = new ConcurrentDictionary<Guid, ProcessingStatus>();
-        _embeddingModel = configuration["OpenAI:EmbeddingModel"] ?? "text-embedding-ada-002";
+        _embeddingModel = configuration["AI:EmbeddingModel"] ?? 
+                         configuration["AI:OpenAI:EmbeddingModel"] ?? 
+                         "text-embedding-ada-002";
     }
 
     public async Task<VectorEmbedding[]> GenerateEmbeddingsAsync(List<ContractChunk> chunks)
@@ -91,24 +88,43 @@ public class EmbeddingService : IEmbeddingService
             var cacheKey = $"embedding_{text.GetHashCode()}";
             if (_cache.TryGetValue(cacheKey, out VectorEmbedding? cachedEmbedding) && cachedEmbedding != null)
             {
+                _logger.LogDebug("Returning cached embedding for text hash {Hash}", text.GetHashCode());
                 return cachedEmbedding;
             }
 
             _logger.LogDebug("Generating embedding for text of length {TextLength}", text.Length);
 
-            // Generate embedding using Semantic Kernel
-            var embedding = await _embeddingService.GenerateEmbeddingAsync(text);
+            // Get embedding provider from factory
+            var embeddingProvider = _providerFactory.GetEmbeddingProvider();
+            
+            if (embeddingProvider == null || !embeddingProvider.SupportsEmbeddings)
+            {
+                _logger.LogError("No embedding provider available or provider doesn't support embeddings");
+                throw new InvalidOperationException("No suitable embedding provider configured");
+            }
+
+            _logger.LogDebug("Using embedding provider: {ProviderName}", embeddingProvider.ProviderName);
+
+            // Generate embedding using LLM provider
+            var embeddingOptions = new EmbeddingOptions
+            {
+                Model = _embeddingModel
+            };
+
+            var embedding = await embeddingProvider.GenerateEmbeddingAsync(text, embeddingOptions);
             
             var vectorEmbedding = new VectorEmbedding(
                 Guid.NewGuid(),
                 Guid.NewGuid(), // This would be the actual chunk ID in real usage
-                embedding.ToArray(),
+                embedding,
                 _embeddingModel,
                 DateTime.UtcNow
             );
 
             // Cache the result
             _cache.Set(cacheKey, vectorEmbedding, TimeSpan.FromHours(24));
+
+            _logger.LogDebug("Successfully generated embedding with {Dimensions} dimensions", embedding.Length);
 
             return vectorEmbedding;
         }
@@ -138,40 +154,99 @@ public class EmbeddingService : IEmbeddingService
 
     private async Task<List<VectorEmbedding>> ProcessEmbeddingBatchAsync(List<ContractChunk> chunks)
     {
-        var tasks = chunks.Select(async chunk =>
+        try
         {
-            try
+            // Get embedding provider
+            var embeddingProvider = _providerFactory.GetEmbeddingProvider();
+            
+            if (embeddingProvider == null || !embeddingProvider.SupportsEmbeddings)
             {
-                // Check if content is too long for embedding model (8192 tokens for Ada-002)
-                var truncatedContent = TruncateTextForEmbedding(chunk.Content);
-                
-                var embedding = await _embeddingService.GenerateEmbeddingAsync(truncatedContent);
-                
-                return new VectorEmbedding(
-                    Guid.NewGuid(),
-                    chunk.Id,
-                    embedding.ToArray(),
-                    _embeddingModel,
-                    DateTime.UtcNow
-                );
+                _logger.LogError("No embedding provider available for batch processing");
+                throw new InvalidOperationException("No suitable embedding provider configured");
             }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Failed to generate embedding for chunk {ChunkId}", chunk.Id);
-                
-                // Return a zero vector as fallback
-                return new VectorEmbedding(
-                    Guid.NewGuid(),
-                    chunk.Id,
-                    new float[1536], // Ada-002 embedding size
-                    _embeddingModel,
-                    DateTime.UtcNow
-                );
-            }
-        });
 
-        var results = await Task.WhenAll(tasks);
-        return results.ToList();
+            _logger.LogDebug("Processing batch of {Count} chunks with provider: {ProviderName}", 
+                chunks.Count, embeddingProvider.ProviderName);
+
+            // Prepare texts for batch embedding generation
+            var texts = chunks.Select(chunk => TruncateTextForEmbedding(chunk.Content)).ToList();
+
+            // Generate embeddings in batch
+            var embeddingOptions = new EmbeddingOptions
+            {
+                Model = _embeddingModel
+            };
+
+            var embeddings = await embeddingProvider.GenerateEmbeddingsAsync(texts, embeddingOptions);
+
+            // Create VectorEmbedding objects
+            var results = new List<VectorEmbedding>();
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                results.Add(new VectorEmbedding(
+                    Guid.NewGuid(),
+                    chunks[i].Id,
+                    embeddings[i],
+                    _embeddingModel,
+                    DateTime.UtcNow
+                ));
+            }
+
+            _logger.LogDebug("Successfully generated {Count} embeddings in batch", results.Count);
+
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Batch embedding generation failed, falling back to individual processing");
+            
+            // Fallback to individual processing
+            var tasks = chunks.Select(async chunk =>
+            {
+                try
+                {
+                    var embeddingProvider = _providerFactory.GetEmbeddingProvider();
+                    
+                    if (embeddingProvider == null || !embeddingProvider.SupportsEmbeddings)
+                    {
+                        throw new InvalidOperationException("No embedding provider available");
+                    }
+
+                    var truncatedContent = TruncateTextForEmbedding(chunk.Content);
+                    
+                    var embeddingOptions = new EmbeddingOptions
+                    {
+                        Model = _embeddingModel
+                    };
+
+                    var embedding = await embeddingProvider.GenerateEmbeddingAsync(truncatedContent, embeddingOptions);
+                    
+                    return new VectorEmbedding(
+                        Guid.NewGuid(),
+                        chunk.Id,
+                        embedding,
+                        _embeddingModel,
+                        DateTime.UtcNow
+                    );
+                }
+                catch (Exception chunkEx)
+                {
+                    _logger.LogWarning(chunkEx, "Failed to generate embedding for chunk {ChunkId}", chunk.Id);
+                    
+                    // Return a zero vector as fallback
+                    return new VectorEmbedding(
+                        Guid.NewGuid(),
+                        chunk.Id,
+                        new float[1536], // Ada-002 embedding size as default
+                        _embeddingModel,
+                        DateTime.UtcNow
+                    );
+                }
+            });
+
+            var results = await Task.WhenAll(tasks);
+            return results.ToList();
+        }
     }
 
     private void UpdateProcessingStatus(Guid documentId, string stage, float progress)

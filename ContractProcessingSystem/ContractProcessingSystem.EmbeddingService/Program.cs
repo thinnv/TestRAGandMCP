@@ -1,6 +1,5 @@
 using ContractProcessingSystem.EmbeddingService.Services;
 using ContractProcessingSystem.Shared.Extensions;
-using Microsoft.SemanticKernel;
 using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,33 +16,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
 
-// Register LLM providers
+// Register LLM providers (includes OpenAI, Azure OpenAI, Gemini)
+// This provides ILLMProviderFactory which the EmbeddingService uses
 builder.Services.AddLLMProviders(builder.Configuration);
-
-// Configure AI provider from appsettings (Gemini by default)
-var aiProvider = builder.Configuration["AI:Provider"] ?? "Gemini";
-var geminiApiKey = builder.Configuration["AI:Gemini:ApiKey"] ?? "";
-
-// Register ITextEmbeddingGenerationService explicitly
-#pragma warning disable SKEXP0010
-builder.Services.AddOpenAITextEmbeddingGeneration(
-    modelId: "text-embedding-ada-002",
-    apiKey: geminiApiKey);
-#pragma warning restore SKEXP0010
-
-// Configure Semantic Kernel for embeddings
-builder.Services.AddSingleton<Kernel>(provider =>
-{
-    var kernelBuilder = Kernel.CreateBuilder();
-    
-    // Get the embedding service from DI
-#pragma warning disable SKEXP0001
-    var embeddingService = provider.GetRequiredService<Microsoft.SemanticKernel.Embeddings.ITextEmbeddingGenerationService>();
-#pragma warning restore SKEXP0001
-    kernelBuilder.Services.AddSingleton(embeddingService);
-    
-    return kernelBuilder.Build();
-});
 
 // Register application services  
 builder.Services.AddScoped<IEmbeddingService, ContractProcessingSystem.EmbeddingService.Services.EmbeddingService>();

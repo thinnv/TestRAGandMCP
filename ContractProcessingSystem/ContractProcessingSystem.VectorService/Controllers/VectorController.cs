@@ -115,14 +115,23 @@ public class VectorController : ControllerBase
     {
         try
         {
-            // This would return information about the Milvus collection
-            // For now, returning mock data
+            // Get real statistics from the vector service
+            var vectorService = _vectorService as MilvusVectorService;
+            
+            if (vectorService != null)
+            {
+                var stats = await vectorService.GetStatisticsAsync();
+                return Ok(stats);
+            }
+            
+            // Fallback to basic info
             var info = new
             {
                 CollectionName = "contract_embeddings",
                 Status = "Ready",
                 Timestamp = DateTime.UtcNow,
-                EstimatedCount = 0 // This would come from Milvus statistics
+                EstimatedCount = 0,
+                Message = "Statistics endpoint requires MilvusVectorService"
             };
             
             return Ok(info);
@@ -131,6 +140,33 @@ public class VectorController : ControllerBase
         {
             _logger.LogError(ex, "Failed to get collection info");
             return StatusCode(500, "Internal server error occurred while getting collection info");
+        }
+    }
+
+    [HttpDelete("collection/clear")]
+    public async Task<ActionResult> ClearCollection()
+    {
+        try
+        {
+            var vectorService = _vectorService as MilvusVectorService;
+            
+            if (vectorService != null)
+            {
+                var clearedCount = await vectorService.ClearAllEmbeddingsAsync();
+                return Ok(new
+                {
+                    Message = "Vector store cleared successfully",
+                    ClearedCount = clearedCount,
+                    Timestamp = DateTime.UtcNow
+                });
+            }
+            
+            return BadRequest("Clear operation requires MilvusVectorService");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to clear collection");
+            return StatusCode(500, "Internal server error occurred while clearing collection");
         }
     }
 }

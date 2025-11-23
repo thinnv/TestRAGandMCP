@@ -169,7 +169,20 @@ public class DocumentParsingService : IDocumentParsingService
             }
 
             // Use more text for better context on structured contracts
-            var textSample = text.Substring(0, Math.Min(text.Length, 15000));
+            // IP licenses and complex agreements need more context
+            var textSample = text.Substring(0, Math.Min(text.Length, 25000));
+            
+            // If we had to truncate, try to end at a clean boundary
+            if (textSample.Length < text.Length && textSample.Length > 1000)
+            {
+                // Try to end at paragraph break
+                var lastDoubleNewline = textSample.LastIndexOf("\n\n");
+                if (lastDoubleNewline > textSample.Length - 500) // Within last 500 chars
+                {
+                    textSample = textSample.Substring(0, lastDoubleNewline);
+                }
+            }
+            
             var prompt = $@"You are an expert contract analysis AI specializing in business and employment contracts. Extract comprehensive metadata.
 
 CONTRACT TEXT:
@@ -186,6 +199,12 @@ For EMPLOYMENT CONTRACTS:
 - Can also include signing bonus, stock options value
 - Parties: EMPLOYER and EMPLOYEE roles
 
+For IP LICENSE AGREEMENTS:
+- Sum: Upfront fee + first year minimum royalty + milestone payments
+- OR use largest total value stated
+- Parties: LICENSOR and LICENSEE roles
+- Do NOT try to calculate potential royalty revenue (too variable)
+
 For ALL CONTRACTS:
 1. TITLE: Extract exact title from first meaningful line
 2. DATE: Contract execution date (""as of"", ""entered into on"", or signature date)
@@ -193,13 +212,15 @@ For ALL CONTRACTS:
 4. VALUE: 
    - Service contracts: Sum of all payments/milestones
    - Employment: Annual base salary (+ signing bonus if applicable)
-   - Use largest total value if multiple amounts exist
+   - IP License: Upfront fee + Year 1 minimum royalty + milestone payments
+   - Use largest stated total value if multiple amounts exist
 5. CURRENCY: Extract from $ symbol (USD) or explicit currency code
 6. PARTIES: Include ALL parties with their roles in parentheses
-   - Examples: ""TechCorp Inc. (CLIENT)"", ""Jessica Martinez (EMPLOYEE)""
+   - Examples: ""TechCorp Inc. (CLIENT)"", ""Jessica Martinez (EMPLOYEE)"", ""NanoTech Institute (LICENSOR)""
 7. KEY TERMS: Extract from section headers and critical clauses:
    - Employment: compensation, benefits, equity, vacation, confidentiality, IP, non-compete, termination
    - Service: scope, deliverables, payment, IP rights, warranties, support, liability, governing law
+   - IP License: license grant, exclusivity, territory, royalties, patents, enforcement, improvements
 8. TYPE: Exact contract type from title
 
 Return ONLY a JSON object (no markdown, no explanations):
@@ -209,7 +230,7 @@ Return ONLY a JSON object (no markdown, no explanations):
     ""expirationDate"": ""YYYY-MM-DD or null"",
     ""contractValue"": numeric_value_or_null,
     ""currency"": ""USD or other"",
-    ""parties"": [""Party Name (ROLE)""]
+    ""parties"": [""Party Name (ROLE)""],
     ""keyTerms"": [""term1"", ""term2""],
     ""contractType"": ""type from title""
 }}
@@ -217,6 +238,11 @@ Return ONLY a JSON object (no markdown, no explanations):
 EXAMPLES:
 Employment: {{""contractValue"": 145000, ""parties"": [""Innovation Tech Solutions (EMPLOYER)"", ""Jessica Martinez (EMPLOYEE)""]}}
 Service: {{""contractValue"": 120000, ""parties"": [""TechCorp Inc. (CLIENT)"", ""Digital Solutions LLC (DEVELOPER)""]}}
+IP License: {{""contractValue"": 850000, ""parties"": [""NanoTech Institute (LICENSOR)"", ""Advanced Manufacturing (LICENSEE)""]}}
+
+CALCULATION NOTES:
+- For IP License example: $500k upfront + $100k year 1 minimum + $250k first milestone = $850k
+- Focus on guaranteed/fixed payments, not potential future royalties
 
 Return ONLY valid JSON, nothing else.";
 
@@ -228,8 +254,51 @@ Return ONLY valid JSON, nothing else.";
             var chatHistory = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
             chatHistory.AddUserMessage(prompt);
             
-            var chatResults = await chatService.GetChatMessageContentsAsync(chatHistory);
-            var rawResponse = chatResults?.LastOrDefault()?.Content ?? "{}";
+            _logger.LogDebug("Invoking AI chat completion service...");
+            
+            // Configure execution settings with low temperature for deterministic responses
+            var temperature = float.TryParse(_configuration["AI:Temperature"], out var temp) ? temp : 0.1f;
+            var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+            {
+                ExtensionData = new Dictionary<string, object>
+                {
+                    ["temperature"] = temperature // Configurable temperature (default 0.1 for deterministic extraction)
+                }
+            };
+            
+            _logger.LogDebug("Using AI temperature: {Temperature}", temperature);
+            
+            var chatResults = await chatService.GetChatMessageContentsAsync(
+                chatHistory, 
+                executionSettings: executionSettings,
+                kernel: _semanticKernel);
+            
+            // Log detailed response information
+            _logger.LogDebug("Chat results received. Count: {Count}", chatResults?.Count ?? 0);
+            
+            if (chatResults == null || !chatResults.Any())
+            {
+                _logger.LogWarning("AI returned null or empty chat results. Falling back to rule-based extraction");
+                return ExtractMetadataWithRulesAsync(text);
+            }
+            
+            var lastMessage = chatResults.LastOrDefault();
+            if (lastMessage == null)
+            {
+                _logger.LogWarning("Last message in chat results is null. Falling back to rule-based extraction");
+                return ExtractMetadataWithRulesAsync(text);
+            }
+            
+            var rawResponse = lastMessage.Content ?? "{}";
+            _logger.LogDebug("Last message content length: {Length}, IsEmpty: {IsEmpty}", 
+                rawResponse?.Length ?? 0, 
+                string.IsNullOrWhiteSpace(rawResponse));
+            
+            if (string.IsNullOrWhiteSpace(rawResponse))
+            {
+                _logger.LogWarning("AI returned empty content. Falling back to rule-based extraction");
+                return ExtractMetadataWithRulesAsync(text);
+            }
             #pragma warning restore SKEXP0001
             
             _logger.LogDebug("Received raw AI response (length: {Length}): {Response}", 
@@ -363,17 +432,17 @@ Other:
 
 EXAMPLES:
 Employment Contract:
-- ""EMPLOYER: Innovation Tech Solutions\nAddress: 555 Corporate..."" ? Header
-- ""1. POSITION AND DUTIES\nJob Title: Senior Software Engineer..."" ? Clause
-- ""Base Salary: $145,000 per year\nPay Frequency: Bi-weekly..."" ? Term
-- ""Either party may terminate at any time"" ? Condition
-- ""ACKNOWLEDGED AND AGREED:\nEMPLOYER: _____"" ? Signature
+- ""EMPLOYER: Innovation Tech Solutions\nAddress: 555 Corporate..."" = Header
+- ""1. POSITION AND DUTIES\nJob Title: Senior Software Engineer..."" = Clause
+- ""Base Salary: $145,000 per year\nPay Frequency: Bi-weekly..."" = Term
+- ""Either party may terminate at any time"" = Condition
+- ""ACKNOWLEDGED AND AGREED:\nEMPLOYER: _____"" = Signature
 
 Service Contract:
-- ""CLIENT: TechCorp Inc."" ? Header
-- ""1. PROJECT SCOPE\nDeveloper agrees to develop..."" ? Clause
-- ""Phase 1: Analysis (Weeks 1-3) - Payment: $25,000"" ? Term
-- ""If Client fails to provide requirements within 5 days..."" ? Condition
+- ""CLIENT: TechCorp Inc."" = Header
+- ""1. PROJECT SCOPE\nDeveloper agrees to develop..."" = Clause
+- ""Phase 1: Analysis (Weeks 1-3) - Payment: $25,000"" = Term
+- ""If Client fails to provide requirements within 5 days..."" = Condition
 
 Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other";
 
@@ -383,8 +452,35 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
             var chatHistory = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
             chatHistory.AddUserMessage(prompt);
             
-            var chatResults = await chatService.GetChatMessageContentsAsync(chatHistory);
-            var rawClassification = chatResults?.LastOrDefault()?.Content?.Trim() ?? "other";
+            // Configure execution settings with low temperature for deterministic classification
+            var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+            {
+                ExtensionData = new Dictionary<string, object>
+                {
+                    ["temperature"] = 0.1 // Low temperature for consistent chunk classification
+                }
+            };
+            
+            var chatResults = await chatService.GetChatMessageContentsAsync(
+                chatHistory,
+                executionSettings: executionSettings,
+                kernel: _semanticKernel);
+            
+            // Better null handling
+            if (chatResults == null || !chatResults.Any())
+            {
+                _logger.LogWarning("AI returned null or empty results for chunk classification, using default");
+                return ChunkType.Other;
+            }
+            
+            var lastMessage = chatResults.LastOrDefault();
+            var rawClassification = lastMessage?.Content?.Trim() ?? "other";
+            
+            if (string.IsNullOrWhiteSpace(rawClassification))
+            {
+                _logger.LogWarning("AI returned empty classification, using default");
+                return ChunkType.Other;
+            }
             #pragma warning restore SKEXP0001
             
             // Clean up the classification - extract just the first word
@@ -459,7 +555,276 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
             cleaned = cleaned.Substring(firstBrace, lastBrace - firstBrace + 1);
         }
 
-        return cleaned.Trim();
+        return cleaned;
+    }
+
+    private List<string> ExtractParties(string text)
+    {
+        var parties = new HashSet<string>();
+        
+        // Enhanced party patterns for various contract types
+        var partyPatterns = new[]
+        {
+            // IP License: LICENSOR: / LICENSEE:
+            @"(?:LICENSOR|LICENSEE):\s*([^\n\r]+?)(?:\s*\n|Address:|Represented by:|Email:|\("")",
+            
+            // Employment contracts: EMPLOYER: Company Name / EMPLOYEE: Person Name
+            @"(?:EMPLOYER|EMPLOYEE):\s*([^\n\r]+?)(?:\s*\n|Address:|Contact:|Phone:|Email:)",
+            
+            // Service contracts: CLIENT: / DEVELOPER: / PROVIDER:
+            @"(?:CLIENT|DEVELOPER|PROVIDER|CONTRACTOR|VENDOR|CUSTOMER|SELLER|BUYER|PARTY\s+[AB]):\s*([^\n\r]+?)(?:\s*\n|Address:|Contact:|Email:)",
+            
+            // Standard "between X and Y" pattern
+            @"(?:between|among)\s+(.+?)\s+(?:and|&)\s+(.+?)(?:\s*\(|,|\.|\n)",
+            
+            // Company names with legal entities (including Institute, Research, Corp.)
+            @"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inc\.|LLC|Ltd\.|Corporation|Corp\.|Solutions|Systems|Technologies|Institute|Research|University))",
+            
+            // Individual names (for employment contracts)
+            @"([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s*\n|\s*Address:|\s*Phone:)",
+            
+            // Quoted party names
+            @"""([^""]+)""(?:\s+\((?:CLIENT|DEVELOPER|PROVIDER|CONTRACTOR|EMPLOYER|EMPLOYEE|LICENSOR|LICENSEE)\))?",
+        };
+
+        foreach (var pattern in partyPatterns)
+        {
+            var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
+            foreach (Match match in matches)
+            {
+                for (int i = 1; i < match.Groups.Count; i++)
+                {
+                    if (!string.IsNullOrWhiteSpace(match.Groups[i].Value))
+                    {
+                        var party = match.Groups[i].Value.Trim();
+                        // Clean up party names
+                        party = Regex.Replace(party, @"\s+", " ");
+                        party = party.TrimEnd(',', '.', ';', ':', ')');
+                        
+                        // Filter out common false positives
+                        if (party.Length > 3 && party.Length < 200 &&
+                            !party.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
+                            !Regex.IsMatch(party, @"^\d+$"))
+                        {
+                            parties.Add(party);
+                        }
+                    }
+                }
+            }
+        }
+
+        return parties.Take(10).ToList();
+    }
+
+    private decimal? ExtractContractValue(string text)
+    {
+        var allValues = new List<decimal>();
+        
+        // Enhanced value patterns for different contract types
+        var valuePatterns = new[]
+        {
+            // IP License: Upfront License Fee, Annual Minimum Royalty, Milestone Payments
+            @"(?:upfront|license\s+fee|initial\s+fee).*?\$\s*([\d,]+(?:\.\d{2})?)",
+            @"(?:annual\s+minimum|minimum\s+royalty|year\s+1).*?\$\s*([\d,]+(?:\.\d{2})?)",
+            @"(?:milestone|achievement).*?\$\s*([\d,]+(?:\.\d{2})?)",
+            
+            // Employment: Base Salary: $145,000
+            @"(?:base\s+salary|annual\s+salary|yearly\s+salary|compensation).*?\$\s*([\d,]+(?:\.\d{2})?)",
+            
+            // Service contracts: Total Contract Value
+            @"(?:total|grand\s+total|contract\s+value|total\s+value|total\s+amount).*?\$\s*([\d,]+(?:\.\d{2})?)",
+            
+            // Signing bonus (for employment)
+            @"(?:signing\s+bonus|sign-on\s+bonus).*?\$\s*([\d,]+(?:\.\d{2})?)",
+            
+            // Milestone payments (general)
+            @"(?:payment|deliverable|phase).*?\$\s*([\d,]+(?:\.\d{2})?)",
+            
+            // Standard dollar amounts
+            @"\$\s*([\d,]+(?:\.\d{2})?)",
+            
+            // Currency format
+            @"([\d,]+(?:\.\d{2})?)\s*(?:USD|DOLLARS|per\s+year)"
+        };
+
+        // Track specific contract type values
+        decimal? baseSalary = null;
+        decimal? upfrontFee = null;
+        decimal? minimumRoyalty = null;
+        var milestonePayments = new List<decimal>();
+
+        foreach (var pattern in valuePatterns)
+        {
+            var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
+            foreach (Match match in matches)
+            {
+                if (match.Success)
+                {
+                    var valueStr = match.Groups[1].Value.Replace(",", "");
+                    if (decimal.TryParse(valueStr, out var value) && value > 0)
+                    {
+                        // Categorize the value
+                        if (pattern.Contains("upfront") || pattern.Contains("license"))
+                        {
+                            upfrontFee = Math.Max(upfrontFee ?? 0, value);
+                        }
+                        else if (pattern.Contains("annual") || pattern.Contains("minimum"))
+                        {
+                            minimumRoyalty = Math.Max(minimumRoyalty ?? 0, value);
+                        }
+                        else if (pattern.Contains("milestone") || pattern.Contains("achievement"))
+                        {
+                            milestonePayments.Add(value);
+                        }
+                        else if (pattern.Contains("base") || pattern.Contains("salary"))
+                        {
+                            baseSalary = value;
+                        }
+                        
+                        allValues.Add(value);
+                    }
+                }
+            }
+        }
+
+        if (allValues.Count == 0)
+            return null;
+
+        // Smart contract type detection and value calculation
+        
+        // IP License: Sum guaranteed payments
+        if (upfrontFee.HasValue || minimumRoyalty.HasValue)
+        {
+            var ipTotal = (upfrontFee ?? 0) + (minimumRoyalty ?? 0);
+            if (milestonePayments.Any())
+            {
+                ipTotal += milestonePayments.First(); // Add first milestone
+            }
+            return ipTotal > 0 ? ipTotal : allValues.Max();
+        }
+
+        // Employment: Base salary
+        if (baseSalary.HasValue)
+        {
+            return baseSalary.Value;
+        }
+
+        // Service contracts: Return largest value (likely total)
+        return allValues.Max();
+    }
+
+    private string? ExtractContractType(string text)
+    {
+        // Enhanced patterns for various contract types
+        var titlePatterns = new[]
+        {
+            // IP License
+            @"(INTELLECTUAL\s+PROPERTY\s+LICENSE\s+AGREEMENT|IP\s+LICENSE\s+AGREEMENT)",
+            @"(LICENSE\s+AGREEMENT)",
+            @"(PATENT\s+LICENSE\s+AGREEMENT)",
+            @"(TECHNOLOGY\s+LICENSE\s+AGREEMENT)",
+            
+            // Employment
+            @"(EMPLOYMENT\s+(?:AGREEMENT|CONTRACT))",
+            @"(OFFER\s+LETTER)",
+            @"(JOB\s+OFFER)",
+            
+            // Software/Development
+            @"(SOFTWARE\s+DEVELOPMENT\s+AGREEMENT)",
+            @"(DEVELOPMENT\s+AGREEMENT)",
+            
+            // Service
+            @"(SERVICE(?:S)?\s+AGREEMENT)",
+            @"(PROFESSIONAL\s+SERVICES\s+AGREEMENT)",
+            @"(CONSULTING\s+AGREEMENT)",
+            @"(MASTER\s+SERVICE(?:S)?\s+AGREEMENT|MSA)",
+            @"(STATEMENT\s+OF\s+WORK|SOW)",
+            
+            // Other common types
+            @"(PURCHASE\s+AGREEMENT)",
+            @"(LEASE\s+AGREEMENT)",
+            @"(NON-DISCLOSURE\s+AGREEMENT|NDA)",
+            @"(INDEPENDENT\s+CONTRACTOR\s+AGREEMENT)"
+        };
+
+        foreach (var pattern in titlePatterns)
+        {
+            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                return match.Groups[1].Value.ToTitleCase();
+            }
+        }
+
+        return null;
+    }
+
+    private List<string> ExtractKeyTerms(string text)
+    {
+        var keyTerms = new HashSet<string>();
+        
+        // Enhanced term patterns for all contract types
+        var termPatterns = new[]
+        {
+            // IP License-specific
+            @"\b(license\s+grant|licensing|licensed\s+technology)\b",
+            @"\b(exclusivity|exclusive|non-exclusive)\b",
+            @"\b(royalt(?:y|ies)|running\s+royalt(?:y|ies))\b",
+            @"\b(patent(?:s)?|licensed\s+patents?)\b",
+            @"\b(know-how|trade\s+secrets?)\b",
+            @"\b(sublicense|sublicensing)\b",
+            @"\b(territory|field\s+of\s+use)\b",
+            @"\b(improvements?|joint\s+improvements?)\b",
+            @"\b(patent\s+enforcement|patent\s+prosecution)\b",
+            @"\b(diligence|commercialization)\b",
+            
+            // Employment-specific
+            @"\b(position|job\s+title|duties|responsibilities)\b",
+            @"\b(compensation|salary|base\s+pay)\b",
+            @"\b(bonus|incentive|stock\s+options?|equity)\b",
+            @"\b(benefits?|health\s+insurance|401k|retirement)\b",
+            @"\b(vacation|pto|paid\s+time\s+off|sick\s+leave)\b",
+            @"\b(non-compete|non-solicitation|restrictive\s+covenants?)\b",
+            @"\b(at-will|probation(?:ary)?)\b",
+            @"\b(severance)\b",
+            
+            // Service/Development contracts
+            @"\b(project\s+scope|scope\s+of\s+work)\b",
+            @"\b(timeline|milestones?|deliverables?)\b",
+            @"\b(payment(?:\s+terms)?|fees?)\b",
+            @"\b(acceptance\s+criteria|testing)\b",
+            
+            // Common to all
+            @"\b(intellectual\s+property|IP\s+rights?|ownership)\b",
+            @"\b(confidential(?:ity)?|proprietary)\b",
+            @"\b(warrant(?:y|ies))\b",
+            @"\b(indemnif(?:y|ication))\b",
+            @"\b(termination|cancellation)\b",
+            @"\b(liability|damages)\b",
+            @"\b(governing\s+law|jurisdiction)\b",
+            @"\b(dispute\s+resolution|arbitration)\b",
+            @"\b(force\s+majeure)\b",
+            @"\b(support|maintenance)\b",
+            @"\b(training|documentation)\b",
+            @"\b(audit|records|reporting)\b"
+        };
+
+        foreach (var pattern in termPatterns)
+        {
+            var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
+            foreach (Match match in matches)
+            {
+                if (match.Success)
+                {
+                    var term = match.Groups[1].Value.ToLower().Trim();
+                    // Normalize some terms
+                    term = term.Replace("  ", " ");
+                    keyTerms.Add(term);
+                }
+            }
+        }
+
+        return keyTerms.Take(20).OrderBy(t => t).ToList();
     }
 
     private ContractMetadata ExtractMetadataWithRulesAsync(string text)
@@ -468,7 +833,6 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
 
         try
         {
-            // Basic rule-based extraction
             var title = ExtractTitle(text);
             var parties = ExtractParties(text);
             var contractDate = ExtractContractDate(text);
@@ -503,24 +867,21 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
 
     private string? ExtractTitle(string text)
     {
-        // Look for common title patterns at the beginning of document
         var titlePatterns = new[]
         {
-            @"^\s*([A-Z][A-Z\s]+(?:AGREEMENT|CONTRACT))\s*$",  // All caps title on first line
-            @"^([A-Z][A-Za-z\s]+(?:Agreement|Contract))\s*$",  // Title case on first line
+            @"^\s*([A-Z][A-Z\s]+(?:AGREEMENT|CONTRACT))\s*$",
+            @"^([A-Z][A-Za-z\s]+(?:Agreement|Contract))\s*$",
             @"(?:CONTRACT|AGREEMENT):\s*(.*?)(?=\n|\r)",
             @"TITLE:\s*(.*?)(?=\n|\r)"
         };
 
         var lines = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
         
-        // Check first few lines for title
         for (int i = 0; i < Math.Min(5, lines.Length); i++)
         {
             var line = lines[i].Trim();
             if (string.IsNullOrWhiteSpace(line)) continue;
             
-            // Check if it matches title patterns
             foreach (var pattern in titlePatterns)
             {
                 var match = Regex.Match(line, pattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
@@ -534,7 +895,6 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
                 }
             }
             
-            // If first non-empty line contains "AGREEMENT" or "CONTRACT", use it
             if ((line.Contains("AGREEMENT", StringComparison.OrdinalIgnoreCase) || 
                  line.Contains("CONTRACT", StringComparison.OrdinalIgnoreCase)) &&
                 line.Length > 10 && line.Length < 200)
@@ -543,76 +903,15 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
             }
         }
 
-        // Fallback to first meaningful line
         return lines.FirstOrDefault(l => l.Trim().Length > 10)?.Trim();
-    }
-
-    private List<string> ExtractParties(string text)
-    {
-        var parties = new HashSet<string>();
-        
-        // Enhanced party patterns for various contract types
-        var partyPatterns = new[]
-        {
-            // Employment contracts: EMPLOYER: Company Name / EMPLOYEE: Person Name
-            @"(?:EMPLOYER|EMPLOYEE):\s*([^\n\r]+?)(?:\s*\n|Address:|Contact:|Phone:|Email:)",
-            
-            // Service contracts: CLIENT: / DEVELOPER: / PROVIDER:
-            @"(?:CLIENT|DEVELOPER|PROVIDER|CONTRACTOR|VENDOR|CUSTOMER|SELLER|BUYER|PARTY\s+[AB]):\s*([^\n\r]+?)(?:\s*\n|Address:|Contact:|Email:)",
-            
-            // Standard "between X and Y" pattern
-            @"(?:between|among)\s+(.+?)\s+(?:and|&)\s+(.+?)(?:\s*\(|,|\.|\n)",
-            
-            // Company names with legal entities
-            @"([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s+(?:Inc\.|LLC|Ltd\.|Corporation|Corp\.|Solutions|Systems|Technologies))",
-            
-            // Individual names (for employment contracts)
-            @"([A-Z][a-z]+\s+[A-Z][a-z]+)(?:\s*\n|\s*Address:|\s*Phone:)",
-            
-            // Quoted party names
-            @"""([^""]+)""(?:\s+\((?:CLIENT|DEVELOPER|PROVIDER|CONTRACTOR|EMPLOYER|EMPLOYEE)\))?",
-        };
-
-        foreach (var pattern in partyPatterns)
-        {
-            var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase | RegexOptions.Multiline);
-            foreach (Match match in matches)
-            {
-                for (int i = 1; i < match.Groups.Count; i++)
-                {
-                    if (!string.IsNullOrWhiteSpace(match.Groups[i].Value))
-                    {
-                        var party = match.Groups[i].Value.Trim();
-                        // Clean up party names
-                        party = Regex.Replace(party, @"\s+", " ");
-                        party = party.TrimEnd(',', '.', ';', ':');
-                        
-                        // Filter out common false positives
-                        if (party.Length > 3 && party.Length < 200 &&
-                            !party.StartsWith("http", StringComparison.OrdinalIgnoreCase) &&
-                            !Regex.IsMatch(party, @"^\d+$"))
-                        {
-                            parties.Add(party);
-                        }
-                    }
-                }
-            }
-        }
-
-        return parties.Take(10).ToList();
     }
 
     private DateTime? ExtractContractDate(string text)
     {
         var datePatterns = new[]
         {
-            // "as of January 15, 2025"
             @"(?:as\s+of|dated|executed\s+as\s+of)\s+(\w+\s+\d{1,2},\s+\d{4})",
-            
-            // "DATE: 01/15/2025" or similar
             @"(?:DATE|DATED|EXECUTED|SIGNED|EFFECTIVE).*?(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})",
-            
-            // Standard date formats
             @"(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})",
             @"(\w+\s+\d{1,2},\s+\d{4})"
         };
@@ -622,7 +921,6 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
             var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
             if (match.Success && DateTime.TryParse(match.Groups[1].Value, out var date))
             {
-                // Only accept reasonable dates (not too far in past/future)
                 if (date.Year >= 1990 && date.Year <= 2100)
                 {
                     return date;
@@ -653,83 +951,12 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
         return null;
     }
 
-    private decimal? ExtractContractValue(string text)
-    {
-        var allValues = new List<decimal>();
-        
-        // Enhanced value patterns for different contract types
-        var valuePatterns = new[]
-        {
-            // Employment: Base Salary: $145,000
-            @"(?:base\s+salary|annual\s+salary|yearly\s+salary|compensation).*?\$\s*([\d,]+(?:\.\d{2})?)",
-            
-            // Service contracts: Total Contract Value
-            @"(?:total|grand\s+total|contract\s+value|total\s+value|total\s+amount).*?\$\s*([\d,]+(?:\.\d{2})?)",
-            
-            // Signing bonus (for employment)
-            @"(?:signing\s+bonus|sign-on\s+bonus).*?\$\s*([\d,]+(?:\.\d{2})?)",
-            
-            // Milestone payments
-            @"(?:payment|deliverable|milestone|phase).*?\$\s*([\d,]+(?:\.\d{2})?)",
-            
-            // Standard dollar amounts
-            @"\$\s*([\d,]+(?:\.\d{2})?)",
-            
-            // Currency format
-            @"([\d,]+(?:\.\d{2})?)\s*(?:USD|DOLLARS|per\s+year)"
-        };
-
-        // Track if we found a base salary (for employment contracts)
-        decimal? baseSalary = null;
-        decimal? signingBonus = null;
-
-        foreach (var pattern in valuePatterns)
-        {
-            var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
-            foreach (Match match in matches)
-            {
-                if (match.Success)
-                {
-                    var valueStr = match.Groups[1].Value.Replace(",", "");
-                    if (decimal.TryParse(valueStr, out var value) && value > 0)
-                    {
-                        // Check if it's a base salary
-                        if (pattern.Contains("base") || pattern.Contains("annual") || pattern.Contains("yearly"))
-                        {
-                            baseSalary = value;
-                        }
-                        // Check if it's a signing bonus
-                        else if (pattern.Contains("signing") || pattern.Contains("sign-on"))
-                        {
-                            signingBonus = value;
-                        }
-                        
-                        allValues.Add(value);
-                    }
-                }
-            }
-        }
-
-        if (allValues.Count == 0)
-            return null;
-
-        // For employment contracts, prioritize base salary
-        if (baseSalary.HasValue)
-        {
-            // Can optionally add signing bonus: return baseSalary.Value + (signingBonus ?? 0);
-            return baseSalary.Value; // Return annual salary
-        }
-
-        // For service contracts, return the largest value (likely the total)
-        return allValues.Max();
-    }
-
     private string? ExtractCurrency(string text)
     {
         var currencyPatterns = new[]
         {
             @"\b(USD|EUR|GBP|CAD|AUD|JPY)\b",
-            @"\$([\d,]+(?:\.\d{2})?)" // Dollar sign implies USD
+            @"\$([\d,]+(?:\.\d{2})?)"
         };
 
         foreach (var pattern in currencyPatterns)
@@ -744,107 +971,9 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
         return null;
     }
 
-    private string? ExtractContractType(string text)
-    {
-        // Enhanced patterns for various contract types
-        var titlePatterns = new[]
-        {
-            // Employment
-            @"(EMPLOYMENT\s+(?:AGREEMENT|CONTRACT))",
-            @"(OFFER\s+LETTER)",
-            @"(JOB\s+OFFER)",
-            
-            // Software/Development
-            @"(SOFTWARE\s+DEVELOPMENT\s+AGREEMENT)",
-            @"(DEVELOPMENT\s+AGREEMENT)",
-            
-            // Service
-            @"(SERVICE(?:S)?\s+AGREEMENT)",
-            @"(PROFESSIONAL\s+SERVICES\s+AGREEMENT)",
-            @"(CONSULTING\s+AGREEMENT)",
-            @"(MASTER\s+SERVICE(?:S)?\s+AGREEMENT|MSA)",
-            @"(STATEMENT\s+OF\s+WORK|SOW)",
-            
-            // Other common types
-            @"(LICENSE\s+AGREEMENT)",
-            @"(PURCHASE\s+AGREEMENT)",
-            @"(LEASE\s+AGREEMENT)",
-            @"(NON-DISCLOSURE\s+AGREEMENT|NDA)",
-            @"(INDEPENDENT\s+CONTRACTOR\s+AGREEMENT)"
-        };
-
-        foreach (var pattern in titlePatterns)
-        {
-            var match = Regex.Match(text, pattern, RegexOptions.IgnoreCase);
-            if (match.Success)
-            {
-                return match.Groups[1].Value.ToTitleCase();
-            }
-        }
-
-        return null;
-    }
-
-    private List<string> ExtractKeyTerms(string text)
-    {
-        var keyTerms = new HashSet<string>();
-        
-        // Enhanced term patterns for all contract types
-        var termPatterns = new[]
-        {
-            // Employment-specific
-            @"\b(position|job\s+title|duties|responsibilities)\b",
-            @"\b(compensation|salary|base\s+pay)\b",
-            @"\b(bonus|incentive|stock\s+options?|equity)\b",
-            @"\b(benefits?|health\s+insurance|401k|retirement)\b",
-            @"\b(vacation|pto|paid\s+time\s+off|sick\s+leave)\b",
-            @"\b(non-compete|non-solicitation|restrictive\s+covenants?)\b",
-            @"\b(at-will|probation(?:ary)?)\b",
-            @"\b(severance)\b",
-            
-            // Service/Development contracts
-            @"\b(project\s+scope|scope\s+of\s+work)\b",
-            @"\b(timeline|milestones?|deliverables?)\b",
-            @"\b(payment(?:\s+terms)?|fees?)\b",
-            @"\b(acceptance\s+criteria|testing)\b",
-            
-            // Common to all
-            @"\b(intellectual\s+property|IP\s+rights?|ownership)\b",
-            @"\b(confidential(?:ity)?|proprietary|trade\s+secrets?)\b",
-            @"\b(warrant(?:y|ies))\b",
-            @"\b(indemnif(?:y|ication))\b",
-            @"\b(termination|cancellation)\b",
-            @"\b(liability|damages)\b",
-            @"\b(governing\s+law|jurisdiction)\b",
-            @"\b(dispute\s+resolution|arbitration)\b",
-            @"\b(force\s+majeure)\b",
-            @"\b(support|maintenance)\b",
-            @"\b(training|documentation)\b"
-        };
-
-        foreach (var pattern in termPatterns)
-        {
-            var matches = Regex.Matches(text, pattern, RegexOptions.IgnoreCase);
-            foreach (Match match in matches)
-            {
-                if (match.Success)
-                {
-                    var term = match.Groups[1].Value.ToLower().Trim();
-                    // Normalize some terms
-                    term = term.Replace("  ", " ");
-                    keyTerms.Add(term);
-                }
-            }
-        }
-
-        return keyTerms.Take(20).OrderBy(t => t).ToList(); // Increased limit to 20
-    }
-
     private async Task<List<ContractChunk>> ChunkTextWithAIAsync(string text, Guid documentId)
     {
         var chunks = new List<ContractChunk>();
-        
-        // First, do semantic chunking using AI
         var semanticChunks = await CreateSemanticChunksAsync(text);
         
         int chunkIndex = 0;
@@ -874,11 +1003,10 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
 
     private async Task<List<string>> CreateSemanticChunksAsync(string text)
     {
-        // Split text into paragraphs first
         var paragraphs = text.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
         var chunks = new List<string>();
         var currentChunk = new StringBuilder();
-        const int maxChunkSize = 1500; // Target chunk size
+        const int maxChunkSize = 1500;
 
         foreach (var paragraph in paragraphs)
         {
@@ -904,9 +1032,8 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
         try
         {
             var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(5); // Set reasonable timeout
+            httpClient.Timeout = TimeSpan.FromMinutes(5);
 
-            // Get the DocumentUpload service URL from configuration
             var documentUploadBaseUrl = _configuration["Services:DocumentUpload"] ?? "https://localhost:7001";
             var url = $"{documentUploadBaseUrl}/api/Documents/{documentId}/content";
             
@@ -964,7 +1091,6 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
                 return false;
             }
 
-            // Check if chat completion service is available
             var chatCompletionService = _semanticKernel.Services.GetService(typeof(Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService));
             
             if (chatCompletionService == null)
@@ -977,13 +1103,24 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
             
             _logger.LogInformation("Testing AI connection with prompt: {Prompt}", testPrompt);
             
-            // Use IChatCompletionService directly
             #pragma warning disable SKEXP0001
             var chatService = (Microsoft.SemanticKernel.ChatCompletion.IChatCompletionService)chatCompletionService;
             var chatHistory = new Microsoft.SemanticKernel.ChatCompletion.ChatHistory();
             chatHistory.AddUserMessage(testPrompt);
             
-            var chatResults = await chatService.GetChatMessageContentsAsync(chatHistory);
+            // Configure execution settings
+            var executionSettings = new Microsoft.SemanticKernel.PromptExecutionSettings
+            {
+                ExtensionData = new Dictionary<string, object>
+                {
+                    ["temperature"] = 0.1
+                }
+            };
+            
+            var chatResults = await chatService.GetChatMessageContentsAsync(
+                chatHistory,
+                executionSettings: executionSettings,
+                kernel: _semanticKernel);
             var result = chatResults?.LastOrDefault()?.Content?.Trim();
             #pragma warning restore SKEXP0001
             
@@ -994,7 +1131,6 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
         {
             _logger.LogError(ex, "AI connection test failed with error: {ErrorMessage}", ex.Message);
             
-            // Log specific Google API errors for debugging
             if (ex.Message.Contains("404") && ex.Message.Contains("NOT_FOUND"))
             {
                 _logger.LogError("Google Gemini API returned 404 - this usually means the model name is incorrect or not available. Current model: {Model}", 
@@ -1006,7 +1142,6 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
     }
 }
 
-// Extension methods for string manipulation
 public static class StringExtensions
 {
     public static string ToTitleCase(this string input)
