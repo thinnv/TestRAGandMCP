@@ -1,5 +1,5 @@
 using ContractProcessingSystem.VectorService.Services;
-using Milvus.Client;
+using Qdrant.Client;
 using ModelContextProtocol.Server;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,19 +13,24 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
 
-// Configure Milvus client
-var milvusHost = builder.Configuration["Milvus:Host"] ?? "localhost";
-var milvusPort = int.Parse(builder.Configuration["Milvus:Port"] ?? "19530");
+// Configure Qdrant client
+var qdrantHost = builder.Configuration["Qdrant:Host"] ?? "localhost";
+var qdrantPort = int.Parse(builder.Configuration["Qdrant:Port"] ?? "6334");
+var useHttps = bool.Parse(builder.Configuration["Qdrant:UseHttps"] ?? "false");
 
-builder.Services.AddSingleton<MilvusClient>(provider =>
+builder.Services.AddSingleton<QdrantClient>(provider =>
 {
-    var client = new MilvusClient(milvusHost, milvusPort);
+    var client = new QdrantClient(
+        host: qdrantHost,
+        port: qdrantPort,
+        https: useHttps
+    );
     return client;
 });
 
 // Register application services
-builder.Services.AddScoped<IVectorService, MilvusVectorService>();
-builder.Services.AddScoped<MilvusVectorService>();
+builder.Services.AddScoped<IVectorService, QdrantVectorService>();
+builder.Services.AddScoped<QdrantVectorService>();
 
 // Configure MCP Server using official ModelContextProtocol.AspNetCore package
 builder.Services.AddMcpServer()

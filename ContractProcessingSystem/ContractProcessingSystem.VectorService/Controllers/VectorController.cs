@@ -116,7 +116,7 @@ public class VectorController : ControllerBase
         try
         {
             // Get real statistics from the vector service
-            var vectorService = _vectorService as MilvusVectorService;
+            var vectorService = _vectorService as QdrantVectorService;
             
             if (vectorService != null)
             {
@@ -131,7 +131,7 @@ public class VectorController : ControllerBase
                 Status = "Ready",
                 Timestamp = DateTime.UtcNow,
                 EstimatedCount = 0,
-                Message = "Statistics endpoint requires MilvusVectorService"
+                Message = "Statistics endpoint requires QdrantVectorService"
             };
             
             return Ok(info);
@@ -148,7 +148,7 @@ public class VectorController : ControllerBase
     {
         try
         {
-            var vectorService = _vectorService as MilvusVectorService;
+            var vectorService = _vectorService as QdrantVectorService;
             
             if (vectorService != null)
             {
@@ -161,7 +161,7 @@ public class VectorController : ControllerBase
                 });
             }
             
-            return BadRequest("Clear operation requires MilvusVectorService");
+            return BadRequest("Clear operation requires QdrantVectorService");
         }
         catch (Exception ex)
         {

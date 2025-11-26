@@ -1,4 +1,5 @@
-using Milvus.Client;
+using Qdrant.Client;
+using Qdrant.Client.Grpc;
 using Microsoft.Extensions.Caching.Memory;
 using ContractProcessingSystem.Shared.Models;
 using System.Text.Json;
@@ -6,11 +7,11 @@ using System.Collections.Concurrent;
 
 namespace ContractProcessingSystem.VectorService.Services;
 
-public class MilvusVectorService : IVectorService
+public class QdrantVectorService : IVectorService
 {
-    private readonly MilvusClient _milvusClient;
+    private readonly QdrantClient _qdrantClient;
     private readonly IMemoryCache _cache;
-    private readonly ILogger<MilvusVectorService> _logger;
+    private readonly ILogger<QdrantVectorService> _logger;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly IConfiguration _configuration;
     private readonly string _collectionName = "contract_embeddings";
@@ -20,24 +21,24 @@ public class MilvusVectorService : IVectorService
     private static int _vectorDimension = 768; // Default to Gemini text-embedding-004 size
     private static readonly object _dimensionLock = new object();
 
-    // Milvus availability tracking
-    private bool _milvusAvailable = false;
-    private bool _milvusInitialized = false;
+    // Qdrant availability tracking
+    private bool _qdrantAvailable = false;
+    private bool _qdrantInitialized = false;
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
-    // Fallback in-memory store (used when Milvus is unavailable OR as cache)
+    // Fallback in-memory store (used when Qdrant is unavailable OR as cache)
     private static readonly ConcurrentDictionary<Guid, VectorEmbedding> _embeddingStore = new();
     private static readonly ConcurrentDictionary<Guid, Guid> _chunkToDocumentMap = new();
     private static readonly ConcurrentDictionary<Guid, string> _chunkContentMap = new();
 
-    public MilvusVectorService(
-        MilvusClient milvusClient,
+    public QdrantVectorService(
+        QdrantClient qdrantClient,
         IMemoryCache cache,
-        ILogger<MilvusVectorService> logger,
+        ILogger<QdrantVectorService> logger,
         IHttpClientFactory httpClientFactory,
         IConfiguration configuration)
     {
-        _milvusClient = milvusClient;
+        _qdrantClient = qdrantClient;
         _cache = cache;
         _logger = logger;
         _httpClientFactory = httpClientFactory;
@@ -76,29 +77,30 @@ public class MilvusVectorService : IVectorService
             }
         }
 
-        // Try to initialize Milvus asynchronously (don't block constructor)
-        _ = Task.Run(async () => await EnsureMilvusInitializedAsync());
+        // Try to initialize Qdrant asynchronously (don't block constructor)
+        _ = Task.Run(async () => await EnsureQdrantInitializedAsync());
     }
 
-    private async Task<bool> EnsureMilvusInitializedAsync()
+    private async Task<bool> EnsureQdrantInitializedAsync()
     {
-        if (_milvusInitialized)
-            return _milvusAvailable;
+        if (_qdrantInitialized)
+            return _qdrantAvailable;
 
         await _initLock.WaitAsync();
         try
         {
-            if (_milvusInitialized)
-                return _milvusAvailable;
+            if (_qdrantInitialized)
+                return _qdrantAvailable;
 
-            _logger.LogInformation("Initializing Milvus connection for collection '{Collection}'", _collectionName);
+            _logger.LogInformation("Initializing Qdrant connection for collection '{Collection}'", _collectionName);
 
             try
             {
-                // Check if Milvus is accessible
-                var hasCollection = await _milvusClient.HasCollectionAsync(_collectionName);
+                // Check if Qdrant is accessible
+                var collections = await _qdrantClient.ListCollectionsAsync();
+                var collectionExists = collections.Contains(_collectionName);
 
-                if (!hasCollection)
+                if (!collectionExists)
                 {
                     _logger.LogInformation("Collection '{Collection}' does not exist, creating...", _collectionName);
                     await CreateCollectionAsync();
@@ -106,21 +108,19 @@ public class MilvusVectorService : IVectorService
                 else
                 {
                     _logger.LogInformation("Collection '{Collection}' already exists", _collectionName);
-                    // Note: LoadCollectionAsync not available in preview SDK
-                    // Collection is automatically loaded when accessed
                 }
 
-                _milvusAvailable = true;
-                _milvusInitialized = true;
-                _logger.LogInformation("? Milvus initialized successfully - using persistent vector storage");
+                _qdrantAvailable = true;
+                _qdrantInitialized = true;
+                _logger.LogInformation("? Qdrant initialized successfully - using persistent vector storage");
 
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "?? Milvus not available - falling back to in-memory storage");
-                _milvusAvailable = false;
-                _milvusInitialized = true;
+                _logger.LogWarning(ex, "?? Qdrant not available - falling back to in-memory storage");
+                _qdrantAvailable = false;
+                _qdrantInitialized = true;
                 return false;
             }
         }
@@ -134,29 +134,36 @@ public class MilvusVectorService : IVectorService
     {
         try
         {
-            // Note: Milvus.Client 2.3.0-preview.1 has limited API
-            // This is a simplified implementation that may need adjustment
-            _logger.LogInformation("Creating Milvus collection '{Collection}' with {Dimension} dimensions",
+            _logger.LogInformation("Creating Qdrant collection '{Collection}' with {Dimension} dimensions",
                 _collectionName, _vectorDimension);
 
-            // Create collection (API may vary by preview version)
-            // For now, log that we would create it
-            // The actual implementation depends on the preview API availability
+            await _qdrantClient.CreateCollectionAsync(
+                collectionName: _collectionName,
+                vectorsConfig: new VectorParams
+                {
+                    Size = (ulong)_vectorDimension,
+                    Distance = Distance.Cosine
+                }
+            );
 
-            _logger.LogWarning("Collection creation requires manual setup or newer Milvus SDK");
-            _logger.LogInformation("Please create collection manually with:");
-            _logger.LogInformation("  - Name: {Collection}", _collectionName);
-            _logger.LogInformation("  - Vector field: 'vector', dimension: {Dimension}", _vectorDimension);
-            _logger.LogInformation("  - Primary key: 'id' (VARCHAR)");
-            _logger.LogInformation("  - Additional fields: chunk_id, document_id, content, model");
+            // Create payload index for efficient filtering
+            await _qdrantClient.CreatePayloadIndexAsync(
+                collectionName: _collectionName,
+                fieldName: "document_id",
+                schemaType: PayloadSchemaType.Keyword
+            );
 
-            throw new NotImplementedException(
-                "Milvus collection creation requires manual setup with preview SDK. " +
-                "Please create the collection manually or use a stable SDK version.");
+            await _qdrantClient.CreatePayloadIndexAsync(
+                collectionName: _collectionName,
+                fieldName: "chunk_id",
+                schemaType: PayloadSchemaType.Keyword
+            );
+
+            _logger.LogInformation("Successfully created Qdrant collection '{Collection}'", _collectionName);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create Milvus collection");
+            _logger.LogError(ex, "Failed to create Qdrant collection");
             throw;
         }
     }
@@ -214,23 +221,23 @@ public class MilvusVectorService : IVectorService
                     embedding.Id, embedding.ChunkId);
             }
 
-            // Try to store in Milvus if available
-            if (_milvusAvailable || await EnsureMilvusInitializedAsync())
+            // Try to store in Qdrant if available
+            if (_qdrantAvailable || await EnsureQdrantInitializedAsync())
             {
                 try
                 {
-                    await StoreInMilvusAsync(embeddings);
-                    _logger.LogInformation("? Stored {Count} embeddings in Milvus (persistent)", embeddings.Length);
+                    await StoreInQdrantAsync(embeddings);
+                    _logger.LogInformation("? Stored {Count} embeddings in Qdrant (persistent)", embeddings.Length);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "?? Failed to store in Milvus, kept in memory cache");
-                    _milvusAvailable = false; // Mark as unavailable for future attempts
+                    _logger.LogWarning(ex, "?? Failed to store in Qdrant, kept in memory cache");
+                    _qdrantAvailable = false; // Mark as unavailable for future attempts
                 }
             }
             else
             {
-                _logger.LogInformation("?? Stored {Count} embeddings in memory (Milvus unavailable)", embeddings.Length);
+                _logger.LogInformation("?? Stored {Count} embeddings in memory (Qdrant unavailable)", embeddings.Length);
             }
         }
         catch (Exception ex)
@@ -240,67 +247,47 @@ public class MilvusVectorService : IVectorService
         }
     }
 
-    private async Task StoreInMilvusAsync(VectorEmbedding[] embeddings)
+    private async Task StoreInQdrantAsync(VectorEmbedding[] embeddings)
     {
-        _logger.LogDebug("Inserting {Count} embeddings into Milvus via HTTP API", embeddings.Length);
+        _logger.LogDebug("Inserting {Count} embeddings into Qdrant", embeddings.Length);
 
         try
         {
-            // Use Milvus HTTP API (more stable than preview SDK)
-            var httpClient = _httpClientFactory.CreateClient();
-            var milvusHttpEndpoint = _configuration["Milvus:HttpEndpoint"] ?? "http://localhost:9091";
-            
-            // Prepare data for insertion
-            var entities = embeddings.Select(e => new
+            var points = embeddings.Select(e =>
             {
-                id = e.Id.ToString(),
-                chunk_id = e.ChunkId.ToString(),
-                document_id = _chunkToDocumentMap.TryGetValue(e.ChunkId, out var docId) 
-                    ? docId.ToString() 
-                    : Guid.Empty.ToString(),
-                vector = e.Vector.ToList(),
-                content = _chunkContentMap.TryGetValue(e.ChunkId, out var content) 
-                    ? content.Substring(0, Math.Min(content.Length, 1000)) // Limit content size
-                    : "",
-                model = e.Model,
-                created_at = e.CreatedAt.Ticks
+                var documentId = _chunkToDocumentMap.TryGetValue(e.ChunkId, out var docId)
+                    ? docId
+                    : Guid.Empty;
+
+                var content = _chunkContentMap.TryGetValue(e.ChunkId, out var chunkContent)
+                    ? chunkContent
+                    : "";
+
+                return new PointStruct
+                {
+                    Id = new PointId { Uuid = e.Id.ToString() },
+                    Vectors = e.Vector,
+                    Payload =
+                    {
+                        ["chunk_id"] = e.ChunkId.ToString(),
+                        ["document_id"] = documentId.ToString(),
+                        ["content"] = content.Length > 1000 ? content.Substring(0, 1000) : content,
+                        ["model"] = e.Model,
+                        ["created_at"] = e.CreatedAt.Ticks
+                    }
+                };
             }).ToList();
 
-            var insertRequest = new
-            {
-                collection_name = _collectionName,
-                fields_data = entities
-            };
-
-            _logger.LogDebug("Sending insert request to Milvus HTTP API: {Endpoint}", milvusHttpEndpoint);
-
-            var response = await httpClient.PostAsJsonAsync(
-                $"{milvusHttpEndpoint}/v1/vector/insert",
-                insertRequest
+            await _qdrantClient.UpsertAsync(
+                collectionName: _collectionName,
+                points: points
             );
 
-            if (response.IsSuccessStatusCode)
-            {
-                var result = await response.Content.ReadAsStringAsync();
-                _logger.LogInformation("Successfully inserted {Count} embeddings into Milvus", embeddings.Length);
-                _logger.LogDebug("Milvus insert response: {Response}", result);
-            }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Milvus insert failed with status {StatusCode}: {Error}", 
-                    response.StatusCode, error);
-                throw new HttpRequestException($"Milvus insert failed: {response.StatusCode}");
-            }
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogWarning(ex, "Milvus HTTP API not available - check if Milvus is running on configured endpoint");
-            throw;
+            _logger.LogInformation("Successfully upserted {Count} embeddings into Qdrant", embeddings.Length);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unexpected error storing embeddings in Milvus");
+            _logger.LogError(ex, "Error storing embeddings in Qdrant");
             throw;
         }
     }
@@ -315,22 +302,22 @@ public class MilvusVectorService : IVectorService
             _logger.LogDebug("Performing vector similarity search with {VectorDim} dimensions",
                 queryVector.Length);
 
-            // Try Milvus first if available
-            if (_milvusAvailable)
+            // Try Qdrant first if available
+            if (_qdrantAvailable)
             {
                 try
                 {
-                    var milvusResults = await SearchInMilvusAsync(queryVector, maxResults, minScore);
-                    if (milvusResults != null && milvusResults.Length > 0)
+                    var qdrantResults = await SearchInQdrantAsync(queryVector, maxResults, minScore);
+                    if (qdrantResults != null && qdrantResults.Length > 0)
                     {
-                        _logger.LogInformation("? Found {Count} results from Milvus", milvusResults.Length);
-                        return milvusResults;
+                        _logger.LogInformation("? Found {Count} results from Qdrant", qdrantResults.Length);
+                        return qdrantResults;
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Milvus search failed, falling back to in-memory");
-                    _milvusAvailable = false;
+                    _logger.LogWarning(ex, "Qdrant search failed, falling back to in-memory");
+                    _qdrantAvailable = false;
                 }
             }
 
@@ -344,112 +331,52 @@ public class MilvusVectorService : IVectorService
         }
     }
 
-    private async Task<SearchResult[]?> SearchInMilvusAsync(
+    private async Task<SearchResult[]?> SearchInQdrantAsync(
         float[] queryVector,
         int maxResults,
         float minScore)
     {
-        _logger.LogDebug("Searching Milvus via HTTP API for similar vectors");
+        _logger.LogDebug("Searching Qdrant for similar vectors");
 
         try
         {
-            var httpClient = _httpClientFactory.CreateClient();
-            var milvusHttpEndpoint = _configuration["Milvus:HttpEndpoint"] ?? "http://localhost:9091";
-            
-            // Convert minScore (cosine similarity 0-1) to L2 distance
-            // L2 distance is inversely related to cosine similarity
-            // For normalized vectors: L2 = sqrt(2 * (1 - cosine_similarity))
-            var maxDistance = (float)Math.Sqrt(2 * (1 - minScore));
-
-            var searchRequest = new
-            {
-                collection_name = _collectionName,
-                vectors = new[] { queryVector.ToList() },
-                vector_field = "vector",
-                metric_type = "L2",  // L2 distance metric
-                top_k = maxResults,
-                search_params = new
-                {
-                    nprobe = 10,  // Number of clusters to search
-                    radius = maxDistance  // Maximum distance threshold
-                },
-                output_fields = new[] { "id", "chunk_id", "document_id", "content", "model", "created_at" }
-            };
-
-            _logger.LogDebug("Sending search request to Milvus: top_k={TopK}, max_distance={MaxDistance}", 
-                maxResults, maxDistance);
-
-            var response = await httpClient.PostAsJsonAsync(
-                $"{milvusHttpEndpoint}/v1/vector/search",
-                searchRequest
+            var alldata = await _qdrantClient.QueryAsync(_collectionName);
+            var searchResults = await _qdrantClient.SearchAsync(
+                collectionName: _collectionName,
+                vector: queryVector,
+                limit: (ulong)maxResults,
+                scoreThreshold: minScore,
+                payloadSelector: true
             );
 
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Milvus search failed with status {StatusCode}: {Error}", 
-                    response.StatusCode, error);
-                return null;
-            }
+            var results = new List<SearchResult>();
 
-            var resultJson = await response.Content.ReadAsStringAsync();
-            _logger.LogDebug("Milvus search response: {Response}", resultJson);
-
-            // Parse search results
-            using var jsonDoc = JsonDocument.Parse(resultJson);
-            var root = jsonDoc.RootElement;
-
-            if (!root.TryGetProperty("results", out var resultsArray))
-            {
-                _logger.LogWarning("Milvus search response missing 'results' property");
-                return null;
-            }
-
-            var searchResults = new List<SearchResult>();
-
-            foreach (var result in resultsArray.EnumerateArray())
+            foreach (var result in searchResults)
             {
                 try
                 {
-                    if (!result.TryGetProperty("distance", out var distanceElem) ||
-                        !result.TryGetProperty("entity", out var entity))
-                        continue;
-
-                    var distance = distanceElem.GetSingle();
+                    var payload = result.Payload;
                     
-                    // Convert L2 distance back to cosine similarity
-                    // cosine_similarity = 1 - (L2^2 / 2)
-                    var similarity = 1.0f - ((distance * distance) / 2.0f);
-                    
-                    if (similarity < minScore)
-                        continue;
-
-                    // Extract entity fields
-                    var chunkId = Guid.Parse(entity.GetProperty("chunk_id").GetString() ?? Guid.Empty.ToString());
-                    var documentId = Guid.Parse(entity.GetProperty("document_id").GetString() ?? Guid.Empty.ToString());
-                    var content = entity.TryGetProperty("content", out var contentElem) 
-                        ? contentElem.GetString() ?? "" 
-                        : "";
-                    var model = entity.TryGetProperty("model", out var modelElem)
-                        ? modelElem.GetString() ?? "unknown"
-                        : "unknown";
+                    var chunkId = Guid.Parse(payload["chunk_id"].StringValue);
+                    var documentId = Guid.Parse(payload["document_id"].StringValue);
+                    var content = payload.ContainsKey("content") ? payload["content"].StringValue : "";
+                    var model = payload.ContainsKey("model") ? payload["model"].StringValue : "unknown";
 
                     var metadata = await FetchDocumentMetadataAsync(documentId);
 
-                    searchResults.Add(new SearchResult(
+                    results.Add(new SearchResult(
                         DocumentId: documentId,
                         ChunkId: chunkId,
                         Content: content,
-                        Score: similarity,
+                        Score: result.Score,
                         Metadata: metadata,
                         Highlights: new Dictionary<string, object>
                         {
-                            ["similarity"] = similarity,
-                            ["distance"] = distance,
+                            ["similarity"] = result.Score,
                             ["model"] = model,
-                            ["match_type"] = "milvus_vector_search",
+                            ["match_type"] = "qdrant_vector_search",
                             ["vector_dimension"] = queryVector.Length,
-                            ["storage"] = "milvus"
+                            ["storage"] = "qdrant"
                         }
                     ));
                 }
@@ -459,17 +386,12 @@ public class MilvusVectorService : IVectorService
                 }
             }
 
-            _logger.LogInformation("Milvus search returned {Count} results", searchResults.Count);
-            return searchResults.ToArray();
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogWarning(ex, "Milvus HTTP API not available");
-            return null;
+            _logger.LogInformation("Qdrant search returned {Count} results", results.Count);
+            return results.ToArray();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error searching Milvus");
+            _logger.LogError(ex, "Error searching Qdrant");
             return null;
         }
     }
@@ -607,16 +529,16 @@ public class MilvusVectorService : IVectorService
                 }
             }
 
-            // Try to delete from Milvus if available
-            if (_milvusAvailable)
+            // Try to delete from Qdrant if available
+            if (_qdrantAvailable)
             {
                 try
                 {
-                    await DeleteFromMilvusAsync(documentId);
+                    await DeleteFromQdrantAsync(documentId);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to delete from Milvus");
+                    _logger.LogWarning(ex, "Failed to delete from Qdrant");
                 }
             }
 
@@ -632,40 +554,35 @@ public class MilvusVectorService : IVectorService
         }
     }
 
-    private async Task DeleteFromMilvusAsync(Guid documentId)
+    private async Task DeleteFromQdrantAsync(Guid documentId)
     {
-        _logger.LogDebug("Deleting embeddings for document {DocumentId} from Milvus", documentId);
+        _logger.LogDebug("Deleting embeddings for document {DocumentId} from Qdrant", documentId);
 
         try
         {
-            var httpClient = _httpClientFactory.CreateClient();
-            var milvusHttpEndpoint = _configuration["Milvus:HttpEndpoint"] ?? "http://localhost:9091";
-            
-            // Delete by expression (filter by document_id)
-            var deleteRequest = new
-            {
-                collection_name = _collectionName,
-                expr = $"document_id == \"{documentId}\""
-            };
-
-            var response = await httpClient.PostAsJsonAsync(
-                $"{milvusHttpEndpoint}/v1/vector/delete",
-                deleteRequest
+            await _qdrantClient.DeleteAsync(
+                collectionName: _collectionName,
+                filter: new Filter
+                {
+                    Must =
+                    {
+                        new Condition
+                        {
+                            Field = new FieldCondition
+                            {
+                                Key = "document_id",
+                                Match = new Match { Keyword = documentId.ToString() }
+                            }
+                        }
+                    }
+                }
             );
 
-            if (response.IsSuccessStatusCode)
-            {
-                _logger.LogInformation("Successfully deleted embeddings for document {DocumentId} from Milvus", documentId);
-            }
-            else
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                _logger.LogWarning("Milvus delete failed: {Error}", error);
-            }
+            _logger.LogInformation("Successfully deleted embeddings for document {DocumentId} from Qdrant", documentId);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to delete from Milvus");
+            _logger.LogWarning(ex, "Failed to delete from Qdrant");
         }
     }
 
@@ -695,10 +612,22 @@ public class MilvusVectorService : IVectorService
 
             _logger.LogWarning("Cleared {Count} embeddings from vector store", count);
 
-            // Note: This doesn't clear Milvus - would need separate implementation
-            if (_milvusAvailable)
+            // Try to clear Qdrant collection
+            if (_qdrantAvailable)
             {
-                _logger.LogWarning("Milvus collection not cleared - requires manual cleanup or drop collection");
+                try
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        await _qdrantClient.DeleteCollectionAsync(_collectionName);
+                        await CreateCollectionAsync();
+                        _logger.LogInformation("Cleared Qdrant collection '{Collection}'", _collectionName);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to clear Qdrant collection");
+                }
             }
 
             return count;
@@ -722,14 +651,14 @@ public class MilvusVectorService : IVectorService
             VectorDimension = _vectorDimension,
             ActualDimensions = actualDimensions,
             CollectionName = _collectionName,
-            MilvusAvailable = _milvusAvailable,
-            MilvusInitialized = _milvusInitialized,
-            StorageType = _milvusAvailable ? "Milvus (persistent) + In-Memory (cache)" : "In-Memory Only",
+            QdrantAvailable = _qdrantAvailable,
+            QdrantInitialized = _qdrantInitialized,
+            StorageType = _qdrantAvailable ? "Qdrant (persistent) + In-Memory (cache)" : "In-Memory Only",
             Note = actualDimensions.Count > 1
                 ? "WARNING: Multiple embedding dimensions detected!"
-                : _milvusAvailable
-                    ? "Using Milvus for persistent storage"
-                    : "Milvus unavailable - using in-memory fallback",
+                : _qdrantAvailable
+                    ? "Using Qdrant for persistent storage"
+                    : "Qdrant unavailable - using in-memory fallback",
             EmbeddingModels = _embeddingStore.Values
                 .Select(e => e.Model)
                 .Distinct()

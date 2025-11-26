@@ -11,11 +11,11 @@ namespace ContractProcessingSystem.VectorService.MCPTools;
 [McpServerToolType]
 public class VectorServiceTools
 {
-    private readonly MilvusVectorService _vectorService;
+    private readonly QdrantVectorService _vectorService;
     private readonly ILogger<VectorServiceTools> _logger;
 
     public VectorServiceTools(
-        MilvusVectorService vectorService,
+        QdrantVectorService vectorService,
         ILogger<VectorServiceTools> logger)
     {
         _vectorService = vectorService;

@@ -17,12 +17,12 @@ var storage = builder.AddAzureStorage("storage")
 
 var blobs = storage.AddBlobs("blobs");
 
-// Milvus Vector Database - Standalone mode
-var milvus = builder.AddContainer("milvus", "milvusdb/milvus", "v2.3.3")
-    .WithEndpoint(19530, targetPort: 19530, name: "grpc")
-    .WithEndpoint(9091, targetPort: 9091, name: "http")
-    .WithVolume("milvus-data", "/var/lib/milvus")
-    .WithArgs("milvus", "run", "standalone");
+// Qdrant Vector Database
+var qdrant = builder.AddContainer("qdrant", "qdrant/qdrant", "v1.16.0")
+    .WithEndpoint(6333, targetPort: 6333, name: "rest")
+    .WithEndpoint(6334, targetPort: 6334, name: "grpc")
+    .WithVolume("qdrant-storage", "/qdrant/storage")
+    .WithLifetime(ContainerLifetime.Persistent);
 
 // Core Services
 var documentUpload = builder.AddProject<Projects.ContractProcessingSystem_DocumentUpload>("document-upload")
@@ -41,8 +41,8 @@ var embeddingService = builder.AddProject<Projects.ContractProcessingSystem_Embe
 var vectorService = builder.AddProject<Projects.ContractProcessingSystem_VectorService>("vector-service")
     .WithReference(redis)
     .WithReference(embeddingService)
-    .WithEnvironment("Milvus__Host", "localhost")
-    .WithEnvironment("Milvus__Port", "19530")
+    .WithEnvironment("Qdrant__Host", "localhost")
+    .WithEnvironment("Qdrant__Port", "6334")
     .WithEnvironment("Services__EmbeddingService", embeddingService.GetEndpoint("https"));
 
 var queryService = builder.AddProject<Projects.ContractProcessingSystem_QueryService>("query-service")
