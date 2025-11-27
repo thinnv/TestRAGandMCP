@@ -340,7 +340,6 @@ public class QdrantVectorService : IVectorService
 
         try
         {
-            var alldata = await _qdrantClient.QueryAsync(_collectionName);
             var searchResults = await _qdrantClient.SearchAsync(
                 collectionName: _collectionName,
                 vector: queryVector,

@@ -66,7 +66,8 @@ public record VectorEmbedding(
     Guid ChunkId,
     float[] Vector,
     string Model,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    Guid? DocumentId = null  // Added optional DocumentId for better tracking
 );
 
 public record SearchRequest(
@@ -114,4 +115,11 @@ public record ProcessingStatus(
     float Progress,
     string? Message = null,
     DateTime LastUpdated = default
+);
+
+// New request model for storing embeddings with document mapping
+public record StoreEmbeddingsRequest(
+    VectorEmbedding[] Embeddings,
+    Dictionary<Guid, Guid>? ChunkToDocumentMap = null,  // Maps ChunkId to DocumentId
+    Dictionary<Guid, string>? ChunkContentMap = null     // Maps ChunkId to Content
 );

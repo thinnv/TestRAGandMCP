@@ -179,7 +179,7 @@ public class EmbeddingService : IEmbeddingService
 
             var embeddings = await embeddingProvider.GenerateEmbeddingsAsync(texts, embeddingOptions);
 
-            // Create VectorEmbedding objects
+            // Create VectorEmbedding objects with DocumentId from chunks
             var results = new List<VectorEmbedding>();
             for (int i = 0; i < chunks.Count; i++)
             {
@@ -188,7 +188,8 @@ public class EmbeddingService : IEmbeddingService
                     chunks[i].Id,
                     embeddings[i],
                     _embeddingModel,
-                    DateTime.UtcNow
+                    DateTime.UtcNow,
+                    chunks[i].DocumentId  // Include DocumentId from chunk
                 ));
             }
 
@@ -226,7 +227,8 @@ public class EmbeddingService : IEmbeddingService
                         chunk.Id,
                         embedding,
                         _embeddingModel,
-                        DateTime.UtcNow
+                        DateTime.UtcNow,
+                        chunk.DocumentId  // Include DocumentId from chunk
                     );
                 }
                 catch (Exception chunkEx)
@@ -239,7 +241,8 @@ public class EmbeddingService : IEmbeddingService
                         chunk.Id,
                         new float[1536], // Ada-002 embedding size as default
                         _embeddingModel,
-                        DateTime.UtcNow
+                        DateTime.UtcNow,
+                        chunk.DocumentId  // Include DocumentId even for fallback
                     );
                 }
             });

@@ -28,12 +28,85 @@ public class VectorController : ControllerBase
 
         try
         {
+            // Map chunks to documents and content from the embeddings
+            var vectorService = _vectorService as QdrantVectorService;
+            if (vectorService != null)
+            {
+                foreach (var embedding in embeddings)
+                {
+                    if (embedding.DocumentId.HasValue)
+                    {
+                        // Map the chunk to its document
+                        vectorService.MapChunkToDocument(
+                            embedding.ChunkId, 
+                            embedding.DocumentId.Value, 
+                            null  // Content will be fetched from DocumentParser if needed
+                        );
+                    }
+                }
+            }
+
             await _vectorService.StoreEmbeddingsAsync(embeddings);
             return Ok(new { Message = "Embeddings stored successfully", Count = embeddings.Length });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to store embeddings");
+            return StatusCode(500, "Internal server error occurred while storing embeddings");
+        }
+    }
+
+    [HttpPost("store-with-mapping")]
+    public async Task<ActionResult> StoreEmbeddingsWithMapping([FromBody] StoreEmbeddingsRequest request)
+    {
+        if (!request.Embeddings.Any())
+        {
+            return BadRequest("No embeddings provided");
+        }
+
+        try
+        {
+            var vectorService = _vectorService as QdrantVectorService;
+            if (vectorService != null)
+            {
+                // Apply chunk-to-document mappings if provided
+                if (request.ChunkToDocumentMap != null)
+                {
+                    foreach (var (chunkId, documentId) in request.ChunkToDocumentMap)
+                    {
+                        var content = request.ChunkContentMap?.GetValueOrDefault(chunkId);
+                        vectorService.MapChunkToDocument(chunkId, documentId, content);
+                    }
+                }
+                // Otherwise, use DocumentId from embeddings
+                else
+                {
+                    foreach (var embedding in request.Embeddings)
+                    {
+                        if (embedding.DocumentId.HasValue)
+                        {
+                            vectorService.MapChunkToDocument(
+                                embedding.ChunkId, 
+                                embedding.DocumentId.Value, 
+                                null
+                            );
+                        }
+                    }
+                }
+            }
+
+            await _vectorService.StoreEmbeddingsAsync(request.Embeddings);
+            return Ok(new 
+            { 
+                Message = "Embeddings stored successfully with document mapping", 
+                Count = request.Embeddings.Length,
+                MappedDocuments = request.ChunkToDocumentMap?.Values.Distinct().Count() ?? 
+                                 request.Embeddings.Select(e => e.DocumentId).Distinct().Count()
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to store embeddings with mapping");
             return StatusCode(500, "Internal server error occurred while storing embeddings");
         }
     }

@@ -1,4 +1,4 @@
-using Microsoft.SemanticKernel;
+using ContractProcessingSystem.Shared.AI;
 using System.Text.Json;
 
 namespace ContractProcessingSystem.QueryService.Services;
@@ -6,18 +6,18 @@ namespace ContractProcessingSystem.QueryService.Services;
 public class QueryService : IQueryService
 {
     private readonly IHttpClientFactory _httpClientFactory;
-    private readonly Kernel _semanticKernel;
+    private readonly ILLMProviderFactory _llmProviderFactory;
     private readonly ILogger<QueryService> _logger;
     private readonly IConfiguration _configuration;
 
     public QueryService(
         IHttpClientFactory httpClientFactory,
-        Kernel semanticKernel,
+        ILLMProviderFactory llmProviderFactory,
         ILogger<QueryService> logger,
         IConfiguration configuration)
     {
         _httpClientFactory = httpClientFactory;
-        _semanticKernel = semanticKernel;
+        _llmProviderFactory = llmProviderFactory;
         _logger = logger;
         _configuration = configuration;
     }
@@ -102,7 +102,9 @@ public class QueryService : IQueryService
         try
         {
             var httpClient = _httpClientFactory.CreateClient();
-            var embeddingServiceUrl = _configuration["Services:EmbeddingService"] ?? "http://localhost:5002";
+            var embeddingServiceUrl = GetServiceUrl("EmbeddingService");
+            
+            _logger.LogDebug("Calling EmbeddingService at {Url}", embeddingServiceUrl);
             
             var requestBody = JsonSerializer.Serialize(query);
             var content = new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
@@ -111,7 +113,10 @@ public class QueryService : IQueryService
             response.EnsureSuccessStatusCode();
             
             var responseContent = await response.Content.ReadAsStringAsync();
-            var embedding = JsonSerializer.Deserialize<VectorEmbedding>(responseContent);
+            
+            // Use case-insensitive deserialization
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var embedding = JsonSerializer.Deserialize<VectorEmbedding>(responseContent, jsonOptions);
             
             return embedding?.Vector ?? Array.Empty<float>();
         }
@@ -129,7 +134,9 @@ public class QueryService : IQueryService
         try
         {
             var httpClient = _httpClientFactory.CreateClient();
-            var vectorServiceUrl = _configuration["Services:VectorService"] ?? "http://localhost:5003";
+            var vectorServiceUrl = GetServiceUrl("VectorService");
+            
+            _logger.LogDebug("Calling VectorService at {Url}", vectorServiceUrl);
             
             var vectorRequest = new
             {
@@ -145,7 +152,10 @@ public class QueryService : IQueryService
             response.EnsureSuccessStatusCode();
             
             var responseContent = await response.Content.ReadAsStringAsync();
-            var results = JsonSerializer.Deserialize<SearchResult[]>(responseContent);
+            
+            // Use case-insensitive deserialization
+            var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+            var results = JsonSerializer.Deserialize<SearchResult[]>(responseContent, jsonOptions);
             
             return results ?? Array.Empty<SearchResult>();
         }
@@ -162,6 +172,15 @@ public class QueryService : IQueryService
     {
         try
         {
+            // Get the default LLM provider (Gemini)
+            var llmProvider = _llmProviderFactory.GetDefaultProvider();
+            
+            if (!llmProvider.IsAvailable || !llmProvider.SupportsChat)
+            {
+                _logger.LogWarning("LLM provider not available for enhancement, returning original results");
+                return vectorResults;
+            }
+
             // Use AI to re-rank and enhance search results based on the query context
             var enhancementPrompt = $@"
 You are an expert contract analysis assistant. Given the search query and the contract search results below, 
@@ -174,8 +193,13 @@ Focus on contract-specific relevance like legal terms, clauses, obligations, and
 
 Return a JSON array with enhanced insights for each result.";
 
-            var response = await _semanticKernel.InvokePromptAsync(enhancementPrompt);
-            var enhancementResult = response.GetValue<string>() ?? "{}";
+            var options = new LLMGenerationOptions
+            {
+                Temperature = 0.3f,
+                MaxTokens = 1000
+            };
+
+            var response = await llmProvider.GenerateTextAsync(enhancementPrompt, options);
 
             // For now, return the original results
             // In a real implementation, you would parse the AI response and enhance the results
@@ -192,35 +216,103 @@ Return a JSON array with enhanced insights for each result.";
     {
         var contents = new List<string>();
         
+        // Configure JSON options for case-insensitive deserialization
+        var jsonOptions = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+        
         try
         {
             var httpClient = _httpClientFactory.CreateClient();
-            var documentServiceUrl = _configuration["Services:DocumentUpload"] ?? "http://localhost:5000";
+            var documentServiceUrl = GetServiceUrl("DocumentUpload");
+            
+            _logger.LogDebug("Calling DocumentUpload service at {Url}", documentServiceUrl);
             
             foreach (var documentId in documentIds)
             {
                 try
                 {
-                    var response = await httpClient.GetAsync($"{documentServiceUrl}/api/documents/{documentId}");
-                    if (response.IsSuccessStatusCode)
+                    // First, get document metadata
+                    var metadataResponse = await httpClient.GetAsync($"{documentServiceUrl}/api/documents/{documentId}");
+                    if (!metadataResponse.IsSuccessStatusCode)
                     {
-                        var responseContent = await response.Content.ReadAsStringAsync();
-                        var document = JsonSerializer.Deserialize<ContractDocument>(responseContent);
-                        
-                        // In a real implementation, you would retrieve the actual document content
-                        contents.Add($"Document {document?.FileName}: [Content would be retrieved here]");
+                        _logger.LogWarning("Failed to retrieve metadata for document {DocumentId}: {StatusCode}", 
+                            documentId, metadataResponse.StatusCode);
+                        contents.Add($"Document {documentId}: [Metadata unavailable]");
+                        continue;
                     }
+
+                    var metadataContent = await metadataResponse.Content.ReadAsStringAsync();
+                    
+                    // Log the raw JSON for debugging
+                    _logger.LogDebug("Raw metadata JSON for {DocumentId}: {Json}", 
+                        documentId, 
+                        metadataContent.Length > 200 ? metadataContent.Substring(0, 200) + "..." : metadataContent);
+                    
+                    var document = JsonSerializer.Deserialize<ContractDocument>(metadataContent, jsonOptions);
+                    
+                    if (document == null)
+                    {
+                        _logger.LogWarning("Failed to deserialize document metadata for {DocumentId}. Raw JSON: {Json}", 
+                            documentId, metadataContent);
+                        contents.Add($"Document {documentId}: [Invalid metadata]");
+                        continue;
+                    }
+
+                    _logger.LogDebug("Successfully deserialized document: {FileName}, Status: {Status}", 
+                        document.FileName, document.Status);
+
+                    // For now, we'll use the DocumentParser service to get the parsed chunks
+                    // In a real implementation, you could call /content endpoint and parse the binary content
+                    var parserServiceUrl = GetServiceUrl("DocumentParser");
+                    var chunksResponse = await httpClient.GetAsync($"{parserServiceUrl}/api/parsing/{documentId}/chunks");
+                    
+                    if (chunksResponse.IsSuccessStatusCode)
+                    {
+                        var chunksContent = await chunksResponse.Content.ReadAsStringAsync();
+                        var chunks = JsonSerializer.Deserialize<List<ContractChunk>>(chunksContent, jsonOptions);
+                        
+                        if (chunks != null && chunks.Any())
+                        {
+                            // Combine chunk contents
+                            var fullContent = string.Join("\n\n", chunks.Select(c => c.Content));
+                            contents.Add($"Document {document.FileName}:\n{fullContent}");
+                            _logger.LogDebug("Retrieved {ChunkCount} chunks for document {DocumentId}", chunks.Count, documentId);
+                        }
+                        else
+                        {
+                            contents.Add($"Document {document.FileName}: [No parsed content available]");
+                        }
+                    }
+                    else
+                    {
+                        // Fallback: just use document metadata
+                        var metadataInfo = document.Metadata != null 
+                            ? $"\nTitle: {document.Metadata.Title}\nParties: {string.Join(", ", document.Metadata.Parties)}\nContract Type: {document.Metadata.ContractType}"
+                            : "";
+                        
+                        contents.Add($"Document {document.FileName}:{metadataInfo}\n[Full content not available - document may need to be parsed first]");
+                        _logger.LogWarning("Chunks not available for document {DocumentId}, using metadata only", documentId);
+                    }
+                }
+                catch (JsonException jsonEx)
+                {
+                    _logger.LogError(jsonEx, "JSON deserialization failed for document {DocumentId}. Error: {Error}", 
+                        documentId, jsonEx.Message);
+                    contents.Add($"Document {documentId}: [JSON deserialization error - {jsonEx.Message}]");
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to retrieve content for document {DocumentId}", documentId);
-                    contents.Add($"Document {documentId}: [Content unavailable]");
+                    contents.Add($"Document {documentId}: [Content unavailable - {ex.Message}]");
                 }
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to retrieve document contents");
+            contents.Add("Error retrieving documents");
         }
         
         return contents;
@@ -232,6 +324,15 @@ Return a JSON array with enhanced insights for each result.";
     {
         try
         {
+            // Get the default LLM provider (Gemini)
+            var llmProvider = _llmProviderFactory.GetDefaultProvider();
+            
+            if (!llmProvider.IsAvailable || !llmProvider.SupportsChat)
+            {
+                _logger.LogWarning("LLM provider not available for summarization");
+                return CreateFallbackSummary(request);
+            }
+
             var summaryPrompt = request.Type switch
             {
                 SummaryType.Overview => CreateOverviewPrompt(documentContents, request),
@@ -241,8 +342,13 @@ Return a JSON array with enhanced insights for each result.";
                 _ => CreateOverviewPrompt(documentContents, request)
             };
 
-            var response = await _semanticKernel.InvokePromptAsync(summaryPrompt);
-            var summaryText = response.GetValue<string>() ?? "Summary could not be generated.";
+            var options = new LLMGenerationOptions
+            {
+                Temperature = 0.4f,
+                MaxTokens = request.MaxLength * 2 // Rough estimate
+            };
+
+            var summaryText = await llmProvider.GenerateTextAsync(summaryPrompt, options);
 
             // Extract key points using AI
             var keyPointsPrompt = $@"
@@ -252,8 +358,13 @@ Summary: {summaryText}
 
 Return only the bullet points, one per line, starting with '-'.";
 
-            var keyPointsResponse = await _semanticKernel.InvokePromptAsync(keyPointsPrompt);
-            var keyPointsText = keyPointsResponse.GetValue<string>() ?? "";
+            var keyPointsOptions = new LLMGenerationOptions
+            {
+                Temperature = 0.3f,
+                MaxTokens = 500
+            };
+
+            var keyPointsText = await llmProvider.GenerateTextAsync(keyPointsPrompt, keyPointsOptions);
             
             var keyPoints = keyPointsText
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -266,7 +377,8 @@ Return only the bullet points, one per line, starting with '-'.";
                 ["documentCount"] = request.DocumentIds.Count,
                 ["summaryType"] = request.Type.ToString(),
                 ["focus"] = request.Focus ?? "General",
-                ["wordCount"] = summaryText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length
+                ["wordCount"] = summaryText.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length,
+                ["llmProvider"] = llmProvider.ProviderName
             };
 
             return new SummarizationResult(
@@ -279,14 +391,18 @@ Return only the bullet points, one per line, starting with '-'.";
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to generate AI summary");
-            
-            return new SummarizationResult(
-                "Summary generation failed due to technical error.",
-                new List<string> { "Unable to process documents", "Please try again later" },
-                new Dictionary<string, object> { ["error"] = true },
-                DateTime.UtcNow
-            );
+            return CreateFallbackSummary(request);
         }
+    }
+
+    private SummarizationResult CreateFallbackSummary(SummarizationRequest request)
+    {
+        return new SummarizationResult(
+            "Summary generation failed due to technical error.",
+            new List<string> { "Unable to process documents", "Please try again later" },
+            new Dictionary<string, object> { ["error"] = true },
+            DateTime.UtcNow
+        );
     }
 
     private async Task<SearchResult[]> ApplyHybridRankingAsync(SearchResult[] semanticResults, string query)
@@ -317,6 +433,42 @@ Return only the bullet points, one per line, starting with '-'.";
             return semanticResults;
         }
     }
+
+    #region Service URL Configuration
+
+    private string GetServiceUrl(string serviceName)
+    {
+        var configKey = $"Services:{serviceName}";
+        var url = _configuration[configKey];
+        
+        if (!string.IsNullOrEmpty(url))
+        {
+            _logger.LogDebug("Using configured URL for {ServiceName}: {Url}", serviceName, url);
+            return url;
+        }
+        
+        var defaultUrl = GetDefaultServiceUrl(serviceName);
+        _logger.LogWarning("No configuration found for {ServiceName} at {ConfigKey}, using default: {DefaultUrl}", 
+            serviceName, configKey, defaultUrl);
+        
+        return defaultUrl;
+    }
+
+    private string GetDefaultServiceUrl(string serviceName)
+    {
+        return serviceName switch
+        {
+            "DocumentUpload" => "https://localhost:7048",
+            "DocumentParser" => "https://localhost:7258",
+            "EmbeddingService" => "https://localhost:7070",
+            "VectorService" => "https://localhost:7197",
+            _ => throw new ArgumentException($"Unknown service: {serviceName}", nameof(serviceName))
+        };
+    }
+
+    #endregion
+
+    #region Prompt Generation
 
     private string CreateOverviewPrompt(List<string> contents, SummarizationRequest request)
     {
@@ -402,6 +554,10 @@ Contract Documents:
 Provide a detailed comparison analysis highlighting the most significant differences and commonalities.";
     }
 
+    #endregion
+
+    #region Helper Methods
+
     private List<string> ExtractKeywords(string query)
     {
         // Simple keyword extraction - in a real implementation, you might use NLP libraries
@@ -448,4 +604,6 @@ Provide a detailed comparison analysis highlighting the most significant differe
         
         return vector;
     }
+
+    #endregion
 }

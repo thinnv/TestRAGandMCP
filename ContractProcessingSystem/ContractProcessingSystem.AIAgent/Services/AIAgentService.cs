@@ -442,11 +442,11 @@ Return only the recommendations, one per line, starting with '-'.";
     {
         return serviceName switch
         {
-            "DocumentUpload" => "http://localhost:5000",
-            "DocumentParser" => "http://localhost:5001",
-            "EmbeddingService" => "http://localhost:5002",
-            "VectorService" => "http://localhost:5003",
-            "QueryService" => "http://localhost:5004",
+            "DocumentUpload" => "https://localhost:7048",
+            "DocumentParser" => "https://localhost:7258",
+            "EmbeddingService" => "https://localhost:7070",
+            "VectorService" => "https://localhost:7197",
+            "QueryService" => "https://localhost:7004",
             _ => throw new ArgumentException($"Unknown service: {serviceName}")
         };
     }

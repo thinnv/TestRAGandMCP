@@ -15,6 +15,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpClient();
 
 // Register LLM providers (includes OpenAI, Azure OpenAI, Gemini)
 // This provides ILLMProviderFactory which the EmbeddingService uses

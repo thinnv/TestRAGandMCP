@@ -1,6 +1,178 @@
-@ContractProcessingSystem.QueryService_HostAddress = http://localhost:5103
+@QueryService_HostAddress = https://localhost:7004
 
-GET {{ContractProcessingSystem.QueryService_HostAddress}}/weatherforecast/
+### Health Check
+GET {{QueryService_HostAddress}}/api/query/health
 Accept: application/json
+
+###
+
+### Get Service Capabilities
+GET {{QueryService_HostAddress}}/api/query/capabilities
+Accept: application/json
+
+###
+
+### Get Service Diagnostics (URLs and Configuration)
+GET {{QueryService_HostAddress}}/api/query/diagnostics
+Accept: application/json
+
+###
+
+### Semantic Search - Simple Query
+POST {{QueryService_HostAddress}}/api/query/search
+Content-Type: application/json
+
+{
+  "query": "What are the payment terms in the contract?",
+  "maxResults": 10,
+  "minScore": 0.7
+}
+
+###
+
+### Semantic Search - Advanced with Filters
+POST {{QueryService_HostAddress}}/api/query/search
+Content-Type: application/json
+
+{
+  "query": "Find clauses related to termination and cancellation",
+  "maxResults": 20,
+  "minScore": 0.6,
+  "filters": {
+    "contract_type": "service_agreement",
+    "date_range": {
+      "start": "2023-01-01",
+      "end": "2024-12-31"
+    }
+  }
+}
+
+###
+
+### Hybrid Search - Combines Semantic and Keyword
+POST {{QueryService_HostAddress}}/api/query/search/hybrid
+Content-Type: application/json
+
+{
+  "query": "liability insurance coverage requirements",
+  "maxResults": 15,
+  "minScore": 0.65
+}
+
+###
+
+### Hybrid Search with Document Filter
+POST {{QueryService_HostAddress}}/api/query/search/hybrid
+Content-Type: application/json
+
+{
+  "query": "confidentiality and non-disclosure obligations",
+  "filters": {
+    "document_id": "00000000-0000-0000-0000-000000000001"
+  },
+  "maxResults": 10,
+  "minScore": 0.7
+}
+
+###
+
+### Summarize - Overview
+POST {{QueryService_HostAddress}}/api/query/summarize
+Content-Type: application/json
+
+{
+  "documentIds": [
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002"
+  ],
+  "type": "Overview",
+  "maxLength": 500
+}
+
+###
+
+### Summarize - Key Terms
+POST {{QueryService_HostAddress}}/api/query/summarize
+Content-Type: application/json
+
+{
+  "documentIds": [
+    "00000000-0000-0000-0000-000000000001"
+  ],
+  "type": "KeyTerms",
+  "maxLength": 750,
+  "focus": "financial obligations and payment schedules"
+}
+
+###
+
+### Summarize - Risk Assessment
+POST {{QueryService_HostAddress}}/api/query/summarize
+Content-Type: application/json
+
+{
+  "documentIds": [
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002"
+  ],
+  "type": "RiskAssessment",
+  "maxLength": 1000
+}
+
+###
+
+### Summarize - Comparison (Multiple Documents)
+POST {{QueryService_HostAddress}}/api/query/summarize
+Content-Type: application/json
+
+{
+  "documentIds": [
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002",
+    "00000000-0000-0000-0000-000000000003"
+  ],
+  "type": "Comparison",
+  "maxLength": 1500,
+  "focus": "pricing models and payment terms"
+}
+
+###
+
+### Semantic Search - Legal Compliance
+POST {{QueryService_HostAddress}}/api/query/search
+Content-Type: application/json
+
+{
+  "query": "GDPR compliance and data protection clauses",
+  "maxResults": 15,
+  "minScore": 0.75
+}
+
+###
+
+### Semantic Search - Specific Parties
+POST {{QueryService_HostAddress}}/api/query/search
+Content-Type: application/json
+
+{
+  "query": "obligations and responsibilities of the vendor",
+  "maxResults": 10,
+  "minScore": 0.7,
+  "filters": {
+    "parties": ["Acme Corp", "Vendor LLC"]
+  }
+}
+
+###
+
+### Hybrid Search - Force Majeure
+POST {{QueryService_HostAddress}}/api/query/search/hybrid
+Content-Type: application/json
+
+{
+  "query": "force majeure events pandemic natural disaster",
+  "maxResults": 10,
+  "minScore": 0.6
+}
 
 ###
