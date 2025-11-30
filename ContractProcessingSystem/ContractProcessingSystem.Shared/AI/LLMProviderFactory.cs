@@ -121,6 +121,7 @@ public class LLMProviderFactory : ILLMProviderFactory
         {
             LLMProviderType.OpenAI => CreateOpenAIProvider(config),
             LLMProviderType.Gemini => CreateGeminiProvider(config),
+            LLMProviderType.GitHubModels => CreateGitHubModelsProvider(config),
             _ => throw new NotSupportedException($"Provider type '{config.Type}' is not supported")
         };
     }
@@ -155,6 +156,23 @@ public class LLMProviderFactory : ILLMProviderFactory
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create Gemini provider");
+            throw;
+        }
+    }
+
+    private ILLMProvider CreateGitHubModelsProvider(ProviderConfiguration config)
+    {
+        try
+        {
+            var httpClient = new HttpClient();
+            var logger = _serviceProvider.GetService(typeof(ILogger<GitHubModelsProvider>)) as ILogger<GitHubModelsProvider> ?? 
+                        Microsoft.Extensions.Logging.Abstractions.NullLogger<GitHubModelsProvider>.Instance;
+            
+            return new GitHubModelsProvider(httpClient, config, logger);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create GitHub Models provider");
             throw;
         }
     }

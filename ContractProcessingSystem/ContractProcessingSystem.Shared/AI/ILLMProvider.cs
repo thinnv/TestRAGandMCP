@@ -43,6 +43,7 @@ public enum LLMProviderType
     AzureOpenAI,
     Gemini,
     Claude,
+    GitHubModels,
     Local
 }
 

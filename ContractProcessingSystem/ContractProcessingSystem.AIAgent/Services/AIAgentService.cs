@@ -41,8 +41,8 @@ public class AIAgentService : IAIAgentService
             // Start the complete document processing workflow
             var workflowId = await _workflowService.StartWorkflowAsync("ProcessDocument", new { DocumentId = documentId });
             
-            // Execute the processing pipeline
-            await ExecuteDocumentProcessingPipelineAsync(documentId);
+            // Execute the processing pipeline asynchronously
+            _ = Task.Run(async () => await ExecuteDocumentProcessingPipelineAsync(documentId, workflowId));
 
             return new ProcessingStatus(
                 workflowId,
@@ -80,8 +80,9 @@ Please provide a helpful, accurate response. If you're discussing a specific con
 
 Response:";
 
-            var response = await _semanticKernel.InvokePromptAsync(prompt);
-            var aiResponse = response.GetValue<string>() ?? "I apologize, but I couldn't process your request at this time.";
+            // Use LLM Provider Factory for proper Gemini/OpenAI support
+            var llmProvider = _llmProviderFactory.GetDefaultProvider();
+            var aiResponse = await llmProvider.GenerateTextAsync(prompt);
 
             // Store conversation context for future reference
             if (contextDocumentId.HasValue)
@@ -110,12 +111,26 @@ Response:";
 
             // Retrieve document metadata and content
             var document = await GetDocumentInfoAsync(documentId);
+            if (document == null)
+            {
+                throw new FileNotFoundException($"Document {documentId} not found");
+            }
+
+            // Get the actual document content
+            var documentContent = await GetDocumentTextContentAsync(documentId);
+            
+            // Limit content size for API
+            var contentSample = documentContent.Length > 20000 
+                ? documentContent.Substring(0, 20000) + "\n\n[Content truncated for analysis...]"
+                : documentContent;
             
             // Perform multi-faceted analysis
             var analysisPrompt = $@"
 You are an expert contract analyst. Please provide a comprehensive analysis of the following contract document.
 
-Document: {document?.FileName ?? "Unknown"}
+Document: {document.FileName}
+Document Type: {document.Metadata?.ContractType ?? "Unknown"}
+Parties: {string.Join(", ", document.Metadata?.Parties ?? new List<string>())}
 
 Please analyze:
 1. Contract Type and Purpose
@@ -129,11 +144,13 @@ Please analyze:
 
 Provide a structured analysis that would be useful for legal review and business decision-making.
 
-Contract Content: [Document content would be inserted here in a real implementation]
+Contract Content:
+{contentSample}
 ";
 
-            var response = await _semanticKernel.InvokePromptAsync(analysisPrompt);
-            var analysisText = response.GetValue<string>() ?? "Analysis could not be completed.";
+            // Use LLM Provider Factory
+            var llmProvider = _llmProviderFactory.GetDefaultProvider();
+            var analysisText = await llmProvider.GenerateTextAsync(analysisPrompt);
 
             // Extract key insights
             var insights = await ExtractContractInsightsAsync(analysisText);
@@ -161,22 +178,55 @@ Contract Content: [Document content would be inserted here in a real implementat
         {
             _logger.LogInformation("Starting contract comparison for {DocumentCount} documents", documentIds.Count);
 
-            // Retrieve all documents
-            var documents = new List<object>();
+            if (documentIds.Count < 2)
+            {
+                throw new ArgumentException("At least 2 documents required for comparison");
+            }
+
+            if (documentIds.Count > 5)
+            {
+                throw new ArgumentException("Maximum 5 documents can be compared at once");
+            }
+
+            // Retrieve all documents with their content
+            var documentsData = new List<(ContractDocument Doc, string Content)>();
             foreach (var docId in documentIds)
             {
                 var doc = await GetDocumentInfoAsync(docId);
                 if (doc != null)
                 {
-                    documents.Add(new { Id = docId, Info = doc });
+                    var content = await GetDocumentTextContentAsync(docId);
+                    // Limit each document to 5000 characters for comparison
+                    var contentSample = content.Length > 5000 
+                        ? content.Substring(0, 5000) + "\n[Truncated...]" 
+                        : content;
+                    documentsData.Add((doc, contentSample));
                 }
             }
 
+            if (documentsData.Count < 2)
+            {
+                throw new InvalidOperationException("Could not retrieve enough documents for comparison");
+            }
+
+            // Build comprehensive comparison prompt
+            var documentSummaries = documentsData.Select((d, i) => $@"
+DOCUMENT {i + 1}:
+Filename: {d.Doc.FileName}
+Type: {d.Doc.Metadata?.ContractType ?? "Unknown"}
+Parties: {string.Join(", ", d.Doc.Metadata?.Parties ?? new List<string>())}
+Value: {d.Doc.Metadata?.ContractValue?.ToString("N0") ?? "N/A"} {d.Doc.Metadata?.Currency ?? ""}
+Key Terms: {string.Join(", ", d.Doc.Metadata?.KeyTerms?.Take(5) ?? new List<string>())}
+
+Content:
+{d.Content}
+").ToList();
+
             var comparisonPrompt = $@"
-You are an expert contract analyst. Please compare the following {documents.Count} contract documents and provide a detailed comparison analysis.
+You are an expert contract analyst. Please compare the following {documentsData.Count} contract documents and provide a detailed comparison analysis.
 
 Documents to Compare:
-{string.Join("\n", documents.Select((d, i) => $"{i + 1}. Document ID: {documentIds[i]} - {((dynamic)d).Info?.FileName ?? "Unknown"}"))}
+{string.Join("\n" + new string('=', 80) + "\n", documentSummaries)}
 
 Please provide:
 1. Side-by-side comparison of key terms
@@ -188,12 +238,13 @@ Please provide:
 7. Recommendations for standardization or negotiation
 
 Focus on business-critical differences that could impact decision-making.
+Provide specific examples and quotes from the contracts.";
 
-[Document contents would be inserted here in a real implementation]
-";
-
-            var response = await _semanticKernel.InvokePromptAsync(comparisonPrompt);
-            return response.GetValue<string>() ?? "Contract comparison could not be completed.";
+            // Use LLM Provider Factory
+            var llmProvider = _llmProviderFactory.GetDefaultProvider();
+            var comparisonResult = await llmProvider.GenerateTextAsync(comparisonPrompt);
+            
+            return comparisonResult;
         }
         catch (Exception ex)
         {
@@ -202,30 +253,123 @@ Focus on business-critical differences that could impact decision-making.
         }
     }
 
-    private async Task ExecuteDocumentProcessingPipelineAsync(Guid documentId)
+    private async Task ExecuteDocumentProcessingPipelineAsync(Guid documentId, Guid workflowId)
     {
         try
         {
+            // Update workflow status - Parsing stage
+            await _workflowService.UpdateWorkflowStatusAsync(workflowId, "Parsing Document", 0.2f);
+            
             // Step 1: Parse the document
             await CallServiceAsync("DocumentParser", $"api/parsing/{documentId}/parse", HttpMethod.Post);
             
-            // Step 2: Chunk the document
-            var chunks = await CallServiceAsync("DocumentParser", $"api/parsing/{documentId}/chunk", HttpMethod.Post);
+            // Update workflow status - Chunking stage
+            await _workflowService.UpdateWorkflowStatusAsync(workflowId, "Chunking Document", 0.4f);
             
-            // Step 3: Generate embeddings
-            if (chunks != null)
+            // Step 2: Chunk the document
+            var chunksResponse = await CallServiceAsync("DocumentParser", $"api/parsing/{documentId}/chunk", HttpMethod.Post);
+            
+            // Update workflow status - Embedding generation stage
+            await _workflowService.UpdateWorkflowStatusAsync(workflowId, "Generating Embeddings", 0.6f);
+            
+            // Step 3: Generate embeddings (this also stores them in vector database)
+            if (chunksResponse != null)
             {
-                await CallServiceAsync("EmbeddingService", "api/embeddings/generate", HttpMethod.Post, chunks);
+                await CallServiceAsync("EmbeddingService", "api/embeddings/generate", HttpMethod.Post, chunksResponse);
             }
             
-            // Step 4: Store in vector database (would be called automatically by embedding service)
+            // Update workflow status - Storing vectors stage
+            await _workflowService.UpdateWorkflowStatusAsync(workflowId, "Storing Vectors", 0.8f);
+            
+            // Step 4: Wait for embedding generation and storage to complete
+            // Poll the embedding service status to verify completion
+            var embeddingComplete = await WaitForEmbeddingCompletionAsync(documentId, maxWaitSeconds: 60);
+            
+            if (!embeddingComplete)
+            {
+                _logger.LogWarning("Embedding generation did not complete within timeout for {DocumentId}", documentId);
+                await _workflowService.UpdateWorkflowStatusAsync(workflowId, "Completed with warnings", 0.95f, 
+                    "Document processed but embedding verification timed out");
+            }
+            else
+            {
+                // Update workflow status - Complete
+                await _workflowService.UpdateWorkflowStatusAsync(workflowId, "Processing Complete", 1.0f);
+            }
             
             _logger.LogInformation("Document processing pipeline completed for {DocumentId}", documentId);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to execute document processing pipeline for {DocumentId}", documentId);
+            await _workflowService.UpdateWorkflowStatusAsync(workflowId, "Failed", -1.0f, ex.Message);
             throw;
+        }
+    }
+
+    private async Task<bool> WaitForEmbeddingCompletionAsync(Guid documentId, int maxWaitSeconds = 60)
+    {
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            var embeddingServiceUrl = _configuration["Services:EmbeddingService"] ?? "http://localhost:5002";
+            
+            _logger.LogInformation("Waiting for embedding completion for document {DocumentId}", documentId);
+            
+            var startTime = DateTime.UtcNow;
+            var pollInterval = TimeSpan.FromSeconds(2);
+            
+            while ((DateTime.UtcNow - startTime).TotalSeconds < maxWaitSeconds)
+            {
+                try
+                {
+                    var response = await httpClient.GetAsync($"{embeddingServiceUrl}/api/embeddings/status/{documentId}");
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var statusContent = await response.Content.ReadAsStringAsync();
+                        var status = JsonSerializer.Deserialize<ProcessingStatus>(statusContent, new JsonSerializerOptions 
+                        { 
+                            PropertyNameCaseInsensitive = true 
+                        });
+                        
+                        if (status != null)
+                        {
+                            _logger.LogDebug("Embedding status for {DocumentId}: {Stage} ({Progress:P0})", 
+                                documentId, status.Stage, status.Progress);
+                            
+                            // Check if processing is complete (progress = 1.0) or failed (progress = -1.0)
+                            if (status.Progress >= 1.0f)
+                            {
+                                _logger.LogInformation("Embedding generation completed for {DocumentId}", documentId);
+                                return true;
+                            }
+                            else if (status.Progress < 0)
+                            {
+                                _logger.LogWarning("Embedding generation failed for {DocumentId}: {Message}", 
+                                    documentId, status.Message);
+                                return false;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Error polling embedding status for {DocumentId}", documentId);
+                }
+                
+                // Wait before next poll
+                await Task.Delay(pollInterval);
+            }
+            
+            _logger.LogWarning("Timed out waiting for embedding completion for {DocumentId} after {Seconds}s", 
+                documentId, maxWaitSeconds);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error waiting for embedding completion for {DocumentId}", documentId);
+            return false;
         }
     }
 
@@ -292,8 +436,12 @@ Extract insights about:
 
 Return only a valid JSON object.";
 
-            var response = await _semanticKernel.InvokePromptAsync(insightsPrompt);
-            var jsonResponse = response.GetValue<string>() ?? "{}";
+            // Use LLM Provider Factory
+            var llmProvider = _llmProviderFactory.GetDefaultProvider();
+            var jsonResponse = await llmProvider.GenerateTextAsync(insightsPrompt);
+            
+            // Clean up markdown code blocks
+            jsonResponse = CleanJsonResponse(jsonResponse);
             
             try
             {
@@ -333,8 +481,9 @@ Focus on:
 
 Return only the recommendations, one per line, starting with '-'.";
 
-            var response = await _semanticKernel.InvokePromptAsync(recommendationsPrompt);
-            var recommendationsText = response.GetValue<string>() ?? "";
+            // Use LLM Provider Factory
+            var llmProvider = _llmProviderFactory.GetDefaultProvider();
+            var recommendationsText = await llmProvider.GenerateTextAsync(recommendationsPrompt);
             
             return recommendationsText
                 .Split('\n', StringSplitOptions.RemoveEmptyEntries)
@@ -349,6 +498,49 @@ Return only the recommendations, one per line, starting with '-'.";
         }
     }
 
+    private string CleanJsonResponse(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return "{}";
+        }
+
+        // Remove markdown code blocks (```json ... ``` or ``` ... ```)
+        var cleaned = response.Trim();
+        
+        // Check for markdown code blocks
+        if (cleaned.StartsWith("```"))
+        {
+            // Remove opening ```json or ```
+            var lines = cleaned.Split('\n');
+            if (lines.Length > 0)
+            {
+                var firstLine = lines[0].Trim();
+                if (firstLine.StartsWith("```"))
+                {
+                    cleaned = string.Join('\n', lines.Skip(1));
+                }
+            }
+            
+            // Remove closing ```
+            if (cleaned.EndsWith("```"))
+            {
+                cleaned = cleaned.Substring(0, cleaned.LastIndexOf("```")).Trim();
+            }
+        }
+
+        // Find the first { and last } to extract just the JSON object
+        var firstBrace = cleaned.IndexOf('{');
+        var lastBrace = cleaned.LastIndexOf('}');
+        
+        if (firstBrace >= 0 && lastBrace > firstBrace)
+        {
+            cleaned = cleaned.Substring(firstBrace, lastBrace - firstBrace + 1);
+        }
+
+        return cleaned;
+    }
+
     private async Task<ContractDocument?> GetDocumentInfoAsync(Guid documentId)
     {
         try
@@ -360,7 +552,10 @@ Return only the recommendations, one per line, starting with '-'.";
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<ContractDocument>(content);
+                return JsonSerializer.Deserialize<ContractDocument>(content, new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true 
+                });
             }
         }
         catch (Exception ex)
@@ -369,6 +564,51 @@ Return only the recommendations, one per line, starting with '-'.";
         }
         
         return null;
+    }
+
+    private async Task<string> GetDocumentTextContentAsync(Guid documentId)
+    {
+        try
+        {
+            var httpClient = _httpClientFactory.CreateClient();
+            var parserServiceUrl = _configuration["Services:DocumentParser"] ?? "http://localhost:5002";
+            
+            // Try to get parsed/chunked content first
+            var chunksResponse = await httpClient.GetAsync($"{parserServiceUrl}/api/parsing/{documentId}/chunks");
+            
+            if (chunksResponse.IsSuccessStatusCode)
+            {
+                var chunksContent = await chunksResponse.Content.ReadAsStringAsync();
+                var chunks = JsonSerializer.Deserialize<List<ContractChunk>>(chunksContent, new JsonSerializerOptions 
+                { 
+                    PropertyNameCaseInsensitive = true 
+                });
+                
+                if (chunks != null && chunks.Any())
+                {
+                    // Combine all chunks to get full document text
+                    return string.Join("\n\n", chunks.OrderBy(c => c.ChunkIndex).Select(c => c.Content));
+                }
+            }
+
+            // If chunks not available, get raw content and extract text
+            var documentServiceUrl = _configuration["Services:DocumentUpload"] ?? "http://localhost:5000";
+            var contentResponse = await httpClient.GetAsync($"{documentServiceUrl}/api/documents/{documentId}/content");
+            
+            if (contentResponse.IsSuccessStatusCode)
+            {
+                // For now, return a placeholder - actual text extraction would require DocumentTextExtractor
+                _logger.LogWarning("Document chunks not available for {DocumentId}, raw content extraction not implemented in AIAgent", documentId);
+                return "[Document content available but not yet extracted to text]";
+            }
+
+            throw new InvalidOperationException($"Could not retrieve document content for {documentId}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get document text content for {DocumentId}", documentId);
+            throw;
+        }
     }
 
     private async Task<SearchResult[]> PerformContextualSearchAsync(string query, Guid documentId)
@@ -486,9 +726,6 @@ public class WorkflowService : IWorkflowService
         
         _workflows.TryAdd(workflowId, status);
         
-        // In a real implementation, this would trigger actual workflow execution
-        _ = Task.Run(() => SimulateWorkflowExecution(workflowId, workflowName));
-        
         return workflowId;
     }
 
@@ -522,52 +759,20 @@ public class WorkflowService : IWorkflowService
         return false;
     }
 
-    private async Task SimulateWorkflowExecution(Guid workflowId, string workflowName)
+    public async Task UpdateWorkflowStatusAsync(Guid workflowId, string stage, float progress, string? message = null)
     {
-        try
+        if (_workflows.TryGetValue(workflowId, out var currentStatus))
         {
-            var stages = new[]
+            var newStatus = currentStatus with
             {
-                ("Document Upload", 0.2f),
-                ("Document Parsing", 0.4f),
-                ("Embedding Generation", 0.6f),
-                ("Vector Storage", 0.8f),
-                ("Processing Complete", 1.0f)
+                Stage = stage,
+                Progress = progress,
+                Message = message ?? $"Workflow at stage: {stage}",
+                LastUpdated = DateTime.UtcNow
             };
-
-            foreach (var (stage, progress) in stages)
-            {
-                await Task.Delay(2000); // Simulate processing time
-                
-                if (_workflows.TryGetValue(workflowId, out var currentStatus) && currentStatus.Progress >= 0)
-                {
-                    var newStatus = currentStatus with
-                    {
-                        Stage = stage,
-                        Progress = progress,
-                        LastUpdated = DateTime.UtcNow
-                    };
-                    
-                    _workflows.TryUpdate(workflowId, newStatus, currentStatus);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Workflow {WorkflowId} failed", workflowId);
             
-            if (_workflows.TryGetValue(workflowId, out var currentStatus))
-            {
-                var errorStatus = currentStatus with
-                {
-                    Stage = "Failed",
-                    Progress = -1.0f,
-                    Message = ex.Message,
-                    LastUpdated = DateTime.UtcNow
-                };
-                
-                _workflows.TryUpdate(workflowId, errorStatus, currentStatus);
-            }
+            _workflows.TryUpdate(workflowId, newStatus, currentStatus);
+            _logger.LogInformation("Workflow {WorkflowId} updated: {Stage} ({Progress:P0})", workflowId, stage, progress);
         }
     }
 }

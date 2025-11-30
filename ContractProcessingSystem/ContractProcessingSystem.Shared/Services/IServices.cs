@@ -101,4 +101,5 @@ public interface IWorkflowService
     Task<Guid> StartWorkflowAsync(string workflowName, object parameters);
     Task<ProcessingStatus> GetWorkflowStatusAsync(Guid workflowId);
     Task<bool> CancelWorkflowAsync(Guid workflowId);
+    Task UpdateWorkflowStatusAsync(Guid workflowId, string stage, float progress, string? message = null);
 }
