@@ -172,44 +172,266 @@ public class QueryService : IQueryService
     {
         try
         {
-            // Get the default LLM provider (Gemini)
+            if (vectorResults == null || vectorResults.Length == 0)
+            {
+                _logger.LogDebug("No results to enhance");
+                return vectorResults ?? Array.Empty<SearchResult>();
+            }
+
+            // ? First, enrich metadata for results that have "Unknown Document"
+            var enrichedResults = await EnrichMetadataAsync(vectorResults);
+
             var llmProvider = _llmProviderFactory.GetDefaultProvider();
             
             if (!llmProvider.IsAvailable || !llmProvider.SupportsChat)
             {
-                _logger.LogWarning("LLM provider not available for enhancement, returning original results");
-                return vectorResults;
+                _logger.LogWarning("LLM provider not available for enhancement, returning enriched results");
+                return enrichedResults;
             }
 
-            // Use AI to re-rank and enhance search results based on the query context
+            // Prepare results summary for AI (limit to top 5 for context)
+            var resultsContext = new System.Text.StringBuilder();
+            var resultsToAnalyze = Math.Min(enrichedResults.Length, 5);
+            
+            for (int i = 0; i < resultsToAnalyze; i++)
+            {
+                var result = enrichedResults[i];
+                resultsContext.AppendLine($@"
+Result #{i + 1}:
+- Document: {result.Metadata?.Title ?? "Unknown"}
+- Contract Type: {result.Metadata?.ContractType ?? "Unknown"}
+- Score: {result.Score:F3}
+- Content Preview: {(result.Content.Length > 200 ? result.Content.Substring(0, 200) + "..." : result.Content)}
+");
+            }
+
             var enhancementPrompt = $@"
-You are an expert contract analysis assistant. Given the search query and the contract search results below, 
-please analyze and provide enhanced relevance insights.
+You are an expert contract analysis assistant. Analyze the relevance of search results for the given query.
 
-Search Query: {query}
+SEARCH QUERY: {query}
 
-Analyze the relevance of each result and provide insights about why each result matches the query.
-Focus on contract-specific relevance like legal terms, clauses, obligations, and business impact.
+TOP SEARCH RESULTS:
+{resultsContext}
 
-Return a JSON array with enhanced insights for each result.";
+For each result, provide:
+1. Relevance explanation
+2. Key contract terms
+3. Business impact (Low/Medium/High)
+4. Recommendation
+
+Return ONLY a JSON array:
+[
+  {{
+    ""resultIndex"": 0,
+    ""relevanceScore"": 0.95,
+    ""relevanceReason"": ""Contains exact payment terms"",
+    ""keyTerms"": [""payment"", ""net 30""],
+    ""businessImpact"": ""High"",
+    ""recommendation"": ""Review payment terms""
+  }}
+]
+
+Analyze only the top {resultsToAnalyze} results. Return valid JSON only.";
 
             var options = new LLMGenerationOptions
             {
                 Temperature = 0.3f,
-                MaxTokens = 1000
+                MaxTokens = 2000
             };
 
             var response = await llmProvider.GenerateTextAsync(enhancementPrompt, options);
 
-            // For now, return the original results
-            // In a real implementation, you would parse the AI response and enhance the results
-            return vectorResults;
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                _logger.LogWarning("LLM returned empty response");
+                return enrichedResults;
+            }
+
+            var enhancements = ParseEnhancementResponse(response);
+
+            if (enhancements == null || enhancements.Count == 0)
+            {
+                _logger.LogWarning("Failed to parse AI enhancements");
+                return enrichedResults;
+            }
+
+            for (int i = 0; i < enrichedResults.Length && i < enhancements.Count; i++)
+            {
+                var enhancement = enhancements[i];
+                var result = enrichedResults[i];
+
+                result.Highlights["ai_enhanced"] = true;
+                result.Highlights["ai_relevance_score"] = enhancement.RelevanceScore;
+                result.Highlights["ai_relevance_reason"] = enhancement.RelevanceReason ?? "Not provided";
+                result.Highlights["ai_key_terms"] = enhancement.KeyTerms ?? new List<string>();
+                result.Highlights["ai_business_impact"] = enhancement.BusinessImpact ?? "Unknown";
+                result.Highlights["ai_recommendation"] = enhancement.Recommendation ?? "None";
+            }
+
+            _logger.LogInformation("Enhanced {Count} search results with AI", enhancements.Count);
+            return enrichedResults;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to enhance search results, returning original results");
+            _logger.LogWarning(ex, "Failed to enhance search results, returning original");
             return vectorResults;
         }
+    }
+
+    /// <summary>
+    /// Enriches search results with actual document metadata by fetching from DocumentUpload service
+    /// Also filters out invalid results with Guid.Empty documentId
+    /// </summary>
+    private async Task<SearchResult[]> EnrichMetadataAsync(SearchResult[] results)
+    {
+        try
+        {
+            _logger.LogInformation("Enriching metadata for {Count} search results", results.Length);
+
+            // ? Filter out results with Guid.Empty documentId
+            var validResults = results.Where(r => r.DocumentId != Guid.Empty).ToArray();
+            
+            if (validResults.Length < results.Length)
+            {
+                _logger.LogWarning("Filtered out {InvalidCount} results with Guid.Empty documentId", 
+                    results.Length - validResults.Length);
+            }
+
+            var httpClient = _httpClientFactory.CreateClient();
+            var documentServiceUrl = GetServiceUrl("DocumentUpload");
+            
+            var enrichedResults = new List<SearchResult>();
+
+            foreach (var result in validResults)
+            {
+                // Skip if metadata is already populated (not "Unknown Document")
+                if (result.Metadata?.Title != null && result.Metadata.Title != "Unknown Document")
+                {
+                    enrichedResults.Add(result);
+                    continue;
+                }
+
+                try
+                {
+                    _logger.LogDebug("Fetching metadata for DocumentId={DocumentId}", result.DocumentId);
+                    
+                    var response = await httpClient.GetAsync($"{documentServiceUrl}/api/documents/{result.DocumentId}");
+                    
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                        var document = await response.Content.ReadFromJsonAsync<ContractDocument>(jsonOptions);
+                        
+                        if (document != null)
+                        {
+                            // Create enriched result with actual metadata
+                            var enrichedMetadata = document.Metadata ?? new ContractMetadata(
+                                Title: document.FileName,  // Use filename if no title
+                                ContractDate: null,
+                                ExpirationDate: null,
+                                ContractValue: null,
+                                Currency: null,
+                                Parties: new List<string>(),
+                                KeyTerms: new List<string>(),
+                                ContractType: null,
+                                CustomFields: new Dictionary<string, object>
+                                {
+                                    ["fileName"] = document.FileName,
+                                    ["status"] = document.Status.ToString(),
+                                    ["uploadedAt"] = document.UploadedAt.ToString("O")
+                                }
+                            );
+
+                            var enrichedResult = new SearchResult(
+                                DocumentId: result.DocumentId,
+                                ChunkId: result.ChunkId,
+                                Content: result.Content,
+                                Score: result.Score,
+                                Metadata: enrichedMetadata,
+                                Highlights: new Dictionary<string, object>(result.Highlights)
+                                {
+                                    ["metadata_enriched"] = true,
+                                    ["document_status"] = document.Status.ToString()
+                                }
+                            );
+
+                            enrichedResults.Add(enrichedResult);
+                            _logger.LogDebug("Enriched metadata for DocumentId={DocumentId}, Title={Title}", 
+                                result.DocumentId, enrichedMetadata.Title);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Failed to fetch document metadata: {StatusCode} for DocumentId={DocumentId}", 
+                            response.StatusCode, result.DocumentId);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error fetching metadata for DocumentId={DocumentId}", result.DocumentId);
+                }
+
+                // If enrichment failed, keep original result
+                enrichedResults.Add(result);
+            }
+
+            _logger.LogInformation("Metadata enrichment complete: {EnrichedCount}/{TotalCount} results enriched, {FilteredCount} invalid results filtered", 
+                enrichedResults.Count(r => r.Highlights.ContainsKey("metadata_enriched")), 
+                validResults.Length,
+                results.Length - validResults.Length);
+
+            return enrichedResults.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during metadata enrichment, returning original results");
+            return results;
+        }
+    }
+
+    private List<EnhancementData>? ParseEnhancementResponse(string response)
+    {
+        try
+        {
+            var cleaned = response.Trim();
+            
+            if (cleaned.StartsWith("```json")) cleaned = cleaned.Substring(7);
+            else if (cleaned.StartsWith("```")) cleaned = cleaned.Substring(3);
+            if (cleaned.EndsWith("```")) cleaned = cleaned.Substring(0, cleaned.Length - 3);
+            cleaned = cleaned.Trim();
+
+            var startIndex = cleaned.IndexOf('[');
+            var endIndex = cleaned.LastIndexOf(']');
+            
+            if (startIndex >= 0 && endIndex > startIndex)
+            {
+                cleaned = cleaned.Substring(startIndex, endIndex - startIndex + 1);
+            }
+
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            return JsonSerializer.Deserialize<List<EnhancementData>>(cleaned, options);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse enhancement response");
+            return null;
+        }
+    }
+
+    private class EnhancementData
+    {
+        public int ResultIndex { get; set; }
+        public float RelevanceScore { get; set; }
+        public string? RelevanceReason { get; set; }
+        public List<string>? KeyTerms { get; set; }
+        public string? BusinessImpact { get; set; }
+        public string? Recommendation { get; set; }
     }
 
     private async Task<List<string>> RetrieveDocumentContentsAsync(List<Guid> documentIds)

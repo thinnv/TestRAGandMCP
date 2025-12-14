@@ -1,11 +1,13 @@
-using Microsoft.AspNetCore.Builder;
+﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Http.Resilience;  // ✅ Add this namespace
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Polly.Timeout;  // ✅ Add Polly.Timeout namespace
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -24,8 +26,25 @@ public static class Extensions
 
         builder.Services.ConfigureHttpClientDefaults(http =>
         {
-            // Turn on resilience by default
-            http.AddStandardResilienceHandler();
+            // ✅ Configure resilience with custom timeouts and circuit breaker
+            http.AddStandardResilienceHandler(options =>
+            {
+                // Configure total request timeout to 100 seconds (covers all retry attempts)
+                options.TotalRequestTimeout = new HttpTimeoutStrategyOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(120)
+                };
+                
+                // Configure per-attempt timeout to 30 seconds
+                options.AttemptTimeout = new HttpTimeoutStrategyOptions
+                {
+                    Timeout = TimeSpan.FromSeconds(60)
+                };
+                
+                // ✅ Configure circuit breaker with sampling duration >= 2 × attempt timeout
+                // Circuit breaker sampling duration must be at least double the attempt timeout
+                options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(120); // 60s >= 2 × 30s ✅
+            });
 
             // Turn on service discovery by default
             http.AddServiceDiscovery();

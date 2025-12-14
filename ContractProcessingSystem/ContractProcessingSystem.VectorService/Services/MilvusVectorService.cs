@@ -253,37 +253,64 @@ public class QdrantVectorService : IVectorService
 
         try
         {
-            var points = embeddings.Select(e =>
-            {
-                var documentId = _chunkToDocumentMap.TryGetValue(e.ChunkId, out var docId)
-                    ? docId
-                    : Guid.Empty;
-
-                var content = _chunkContentMap.TryGetValue(e.ChunkId, out var chunkContent)
-                    ? chunkContent
-                    : "";
-
-                return new PointStruct
+            var points = embeddings
+                .Where(e => e.Vector != null && e.Vector.Length > 0 && !string.IsNullOrWhiteSpace(e.ChunkId.ToString()))  // ? Skip invalid embeddings
+                .Select(e =>
                 {
-                    Id = new PointId { Uuid = e.Id.ToString() },
-                    Vectors = e.Vector,
-                    Payload =
+                    // ? PRIORITIZE embedding.DocumentId over chunk mapping
+                    var documentId = e.DocumentId ?? 
+                                   (_chunkToDocumentMap.TryGetValue(e.ChunkId, out var docId) ? docId : Guid.Empty);
+
+                    // ?? Log warning if still Guid.Empty
+                    if (documentId == Guid.Empty)
                     {
-                        ["chunk_id"] = e.ChunkId.ToString(),
-                        ["document_id"] = documentId.ToString(),
-                        ["content"] = content.Length > 1000 ? content.Substring(0, 1000) : content,
-                        ["model"] = e.Model,
-                        ["created_at"] = e.CreatedAt.Ticks
+                        _logger.LogWarning("DocumentId is Guid.Empty for ChunkId={ChunkId}, EmbeddingId={EmbeddingId}", 
+                            e.ChunkId, e.Id);
                     }
-                };
-            }).ToList();
+
+                    var content = _chunkContentMap.TryGetValue(e.ChunkId, out var chunkContent)
+                        ? chunkContent
+                        : "";
+
+                    return new PointStruct
+                    {
+                        Id = new PointId { Uuid = e.Id.ToString() },
+                        Vectors = e.Vector,
+                        Payload =
+                        {
+                            ["chunk_id"] = e.ChunkId.ToString(),
+                            ["document_id"] = documentId.ToString(),
+                            ["content"] = content.Length > 1000 ? content.Substring(0, 1000) : content,
+                            ["model"] = e.Model,
+                            ["created_at"] = e.CreatedAt.Ticks,
+                            ["has_document_id"] = documentId != Guid.Empty  // ? Track if document ID is valid
+                        }
+                    };
+                }).ToList();
+
+            if (points.Count == 0)
+            {
+                _logger.LogWarning("No valid embeddings to store in Qdrant (all were filtered out)");
+                return;
+            }
+
+            // ? Log how many have valid vs empty document IDs
+            var validDocIds = points.Count(p => (bool)p.Payload["has_document_id"].BoolValue);
+            var emptyDocIds = points.Count - validDocIds;
+            
+            if (emptyDocIds > 0)
+            {
+                _logger.LogWarning("Storing {EmptyCount} embeddings with Guid.Empty documentId out of {TotalCount} total", 
+                    emptyDocIds, points.Count);
+            }
 
             await _qdrantClient.UpsertAsync(
                 collectionName: _collectionName,
                 points: points
             );
 
-            _logger.LogInformation("Successfully upserted {Count} embeddings into Qdrant", embeddings.Length);
+            _logger.LogInformation("Successfully upserted {Count} embeddings into Qdrant ({ValidDocIds} with valid documentId, {EmptyDocIds} with Guid.Empty)", 
+                points.Count, validDocIds, emptyDocIds);
         }
         catch (Exception ex)
         {
@@ -336,7 +363,8 @@ public class QdrantVectorService : IVectorService
         int maxResults,
         float minScore)
     {
-        _logger.LogDebug("Searching Qdrant for similar vectors");
+        _logger.LogInformation("=== Starting Qdrant Search ===");
+        _logger.LogDebug("Searching Qdrant for similar vectors with {Dimensions} dimensions", queryVector.Length);
 
         try
         {
@@ -346,24 +374,53 @@ public class QdrantVectorService : IVectorService
                 limit: (ulong)maxResults,
                 scoreThreshold: minScore,
                 payloadSelector: true
-            );
+            ).ConfigureAwait(false);
 
-            var results = new List<SearchResult>();
+            _logger.LogInformation("?? Qdrant returned {Count} raw results", searchResults.Count);
 
-            foreach (var result in searchResults)
+            if (!searchResults.Any())
+            {
+                _logger.LogInformation("No results found in Qdrant matching criteria");
+                return Array.Empty<SearchResult>();
+            }
+
+            // Process all results in parallel for better performance
+            var processingStartTime = DateTime.UtcNow;
+            _logger.LogInformation("Starting parallel processing of {Count} results...", searchResults.Count);
+
+            var resultTasks = searchResults.Select(async (result, index) =>
             {
                 try
                 {
+                    var taskStartTime = DateTime.UtcNow;
+                    _logger.LogDebug("[Task {Index}] Starting processing...", index);
+
                     var payload = result.Payload;
                     
+                    if (!payload.ContainsKey("chunk_id") || !payload.ContainsKey("document_id"))
+                    {
+                        _logger.LogWarning("[Task {Index}] Search result missing required payload fields", index);
+                        return null;
+                    }
+
                     var chunkId = Guid.Parse(payload["chunk_id"].StringValue);
                     var documentId = Guid.Parse(payload["document_id"].StringValue);
                     var content = payload.ContainsKey("content") ? payload["content"].StringValue : "";
                     var model = payload.ContainsKey("model") ? payload["model"].StringValue : "unknown";
 
-                    var metadata = await FetchDocumentMetadataAsync(documentId);
+                    _logger.LogDebug("[Task {Index}] Parsed: ChunkId={ChunkId}, DocumentId={DocumentId}, Score={Score}", 
+                        index, chunkId, documentId, result.Score);
 
-                    results.Add(new SearchResult(
+                    // Fetch metadata (this is the slow part - now done in parallel)
+                    _logger.LogDebug("[Task {Index}] Fetching metadata for DocumentId={DocumentId}...", index, documentId);
+                    var metadataStartTime = DateTime.UtcNow;
+                    
+                    var metadata = await FetchDocumentMetadataAsync(documentId).ConfigureAwait(false);
+                    
+                    var metadataElapsed = (DateTime.UtcNow - metadataStartTime).TotalMilliseconds;
+                    _logger.LogDebug("[Task {Index}] Metadata fetched in {ElapsedMs}ms", index, metadataElapsed);
+
+                    var searchResult = new SearchResult(
                         DocumentId: documentId,
                         ChunkId: chunkId,
                         Content: content,
@@ -377,20 +434,41 @@ public class QdrantVectorService : IVectorService
                             ["vector_dimension"] = queryVector.Length,
                             ["storage"] = "qdrant"
                         }
-                    ));
+                    );
+
+                    var taskElapsed = (DateTime.UtcNow - taskStartTime).TotalMilliseconds;
+                    _logger.LogDebug("[Task {Index}] Completed in {ElapsedMs}ms", index, taskElapsed);
+
+                    return searchResult;
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to parse search result");
+                    _logger.LogWarning(ex, "[Task {Index}] Failed to parse individual search result", index);
+                    return null;
                 }
-            }
+            }).ToList();
 
-            _logger.LogInformation("Qdrant search returned {Count} results", results.Count);
-            return results.ToArray();
+            _logger.LogInformation("Waiting for all {Count} parallel tasks to complete...", resultTasks.Count);
+
+            // Wait for ALL metadata fetching to complete
+            var results = await Task.WhenAll(resultTasks).ConfigureAwait(false);
+
+            var processingElapsed = (DateTime.UtcNow - processingStartTime).TotalMilliseconds;
+            _logger.LogInformation("All parallel tasks completed in {ElapsedMs}ms", processingElapsed);
+
+            // Filter out null results (failed parsing)
+            var validResults = results.Where(r => r != null).Select(r => r!).ToArray();
+
+            _logger.LogInformation("?? Qdrant search returned {ValidCount} valid results (out of {TotalCount} raw results)", 
+                validResults.Length, searchResults.Count);
+
+            _logger.LogInformation("=== Qdrant Search Complete ===");
+
+            return validResults;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error searching Qdrant");
+            _logger.LogError(ex, "??? Error searching Qdrant");
             return null;
         }
     }
@@ -771,25 +849,54 @@ public class QdrantVectorService : IVectorService
 
     private async Task<ContractMetadata> FetchDocumentMetadataAsync(Guid documentId)
     {
+        var requestId = Guid.NewGuid().ToString("N").Substring(0, 8);  // ? Unique request ID
+        
         try
         {
+            _logger.LogInformation("[Request {RequestId}] ?? Starting metadata fetch for DocumentId={DocumentId}", 
+                requestId, documentId);
+            
             var httpClient = _httpClientFactory.CreateClient();
+            
+            // ? Removed manual timeout - Polly handles it globally (100s total, 30s per attempt)
+            
             var documentServiceUrl = _configuration["Services:DocumentUpload"] ?? "http://localhost:5000";
+            var url = $"{documentServiceUrl}/api/documents/{documentId}";
 
-            var response = await httpClient.GetAsync($"{documentServiceUrl}/api/documents/{documentId}");
+            _logger.LogDebug("[Request {RequestId}] Fetching metadata from: {Url}", requestId, url);
+            
+            var requestStartTime = DateTime.UtcNow;
+            var response = await httpClient.GetAsync(url).ConfigureAwait(false);
+            var requestElapsed = (DateTime.UtcNow - requestStartTime).TotalMilliseconds;
 
             if (response.IsSuccessStatusCode)
             {
-                var document = await response.Content.ReadFromJsonAsync<ContractDocument>();
+                var document = await response.Content.ReadFromJsonAsync<ContractDocument>().ConfigureAwait(false);
+                
+                _logger.LogInformation("[Request {RequestId}] ? Metadata fetched in {ElapsedMs}ms for DocumentId={DocumentId}", 
+                    requestId, requestElapsed, documentId);
+                
                 return document?.Metadata ?? CreateDefaultMetadata();
             }
+            else
+            {
+                _logger.LogWarning("[Request {RequestId}] ?? Failed to fetch metadata: {StatusCode} (took {ElapsedMs}ms) for DocumentId={DocumentId}", 
+                    requestId, response.StatusCode, requestElapsed, documentId);
+                return CreateDefaultMetadata();
+            }
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(ex, "[Request {RequestId}] ?? Timeout fetching metadata for DocumentId={DocumentId} (exceeded Polly timeout)", 
+                requestId, documentId);
+            return CreateDefaultMetadata();
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to fetch metadata for document {DocumentId}", documentId);
+            _logger.LogWarning(ex, "[Request {RequestId}] ? Error fetching metadata for DocumentId={DocumentId}", 
+                requestId, documentId);
+            return CreateDefaultMetadata();
         }
-
-        return CreateDefaultMetadata();
     }
 
     private ContractMetadata CreateDefaultMetadata()

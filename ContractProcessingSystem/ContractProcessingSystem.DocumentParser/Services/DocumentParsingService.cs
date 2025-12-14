@@ -971,6 +971,183 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
         return null;
     }
 
+    private async Task<List<string>> CreateSemanticChunksAsync(string text)
+    {
+        _logger.LogInformation("Creating semantic chunks with improved section-based splitting");
+        
+        var chunks = new List<string>();
+        const int maxChunkSize = 700; // Reduced from 1500 for better granularity
+        const int minChunkSize = 100;
+        
+        // Strategy 1: Try to split on numbered sections (e.g., "1. SECTION", "2. SECTION")
+        // This works best for structured contracts like the Software Development Agreement
+        var sectionPattern = @"(?=(?:^|\r?\n)\s*\d+\.\s+[A-Z][A-Z\s]+(?:\r?\n|$))";
+        var sections = Regex.Split(text, sectionPattern, RegexOptions.Multiline)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .Select(s => s.Trim())
+            .ToList();
+        
+        _logger.LogDebug("Section-based split resulted in {SectionCount} potential sections", sections.Count);
+        
+        // If section-based splitting produced good results (more than 3 sections), use it
+        if (sections.Count > 3)
+        {
+            _logger.LogInformation("Using section-based chunking with {SectionCount} sections", sections.Count);
+            
+            var currentChunk = new StringBuilder();
+            
+            foreach (var section in sections)
+            {
+                // If this section alone is too large, split it further
+                if (section.Length > maxChunkSize)
+                {
+                    if (currentChunk.Length >= minChunkSize)
+                    {
+                        chunks.Add(currentChunk.ToString().Trim());
+                        currentChunk.Clear();
+                    }
+                    
+                    // Split large section by sentences
+                    var sentences = Regex.Split(section, @"(?<=[.!?])\s+")
+                        .Where(s => !string.IsNullOrWhiteSpace(s))
+                        .ToList();
+                    
+                    if (sentences.Count > 1)
+                    {
+                        var sentenceChunk = new StringBuilder();
+                        foreach (var sentence in sentences)
+                        {
+                            if (sentenceChunk.Length + sentence.Length + 1 > maxChunkSize && sentenceChunk.Length > 0)
+                            {
+                                chunks.Add(sentenceChunk.ToString().Trim());
+                                sentenceChunk.Clear();
+                            }
+                            if (sentenceChunk.Length > 0) sentenceChunk.Append(' ');
+                            sentenceChunk.Append(sentence);
+                        }
+                        if (sentenceChunk.Length > 0)
+                        {
+                            chunks.Add(sentenceChunk.ToString().Trim());
+                        }
+                    }
+                    else
+                    {
+                        chunks.Add(section.Trim());
+                    }
+                }
+                // If adding this section would exceed max size, save current chunk first
+                else if (currentChunk.Length > 0 && currentChunk.Length + section.Length + 2 > maxChunkSize)
+                {
+                    chunks.Add(currentChunk.ToString().Trim());
+                    currentChunk.Clear();
+                    currentChunk.Append(section);
+                }
+                // Otherwise, add to current chunk
+                else
+                {
+                    if (currentChunk.Length > 0) currentChunk.Append("\r\n\r\n");
+                    currentChunk.Append(section);
+                }
+            }
+            
+            if (currentChunk.Length >= minChunkSize)
+            {
+                chunks.Add(currentChunk.ToString().Trim());
+            }
+            else if (currentChunk.Length > 0 && chunks.Count > 0)
+            {
+                chunks[chunks.Count - 1] += "\r\n\r\n" + currentChunk.ToString().Trim();
+            }
+            else if (currentChunk.Length > 0)
+            {
+                chunks.Add(currentChunk.ToString().Trim());
+            }
+            
+            _logger.LogInformation("Section-based chunking created {ChunkCount} chunks. Average size: {AvgSize} chars", 
+                chunks.Count, chunks.Any() ? chunks.Average(c => c.Length) : 0);
+            
+            return chunks;
+        }
+        
+        // Strategy 2: Fall back to paragraph-based splitting if section splitting didn't work
+        _logger.LogInformation("Section-based splitting didn't work well, falling back to paragraph-based chunking");
+        
+        var paragraphSeparators = new[] { "\r\n\r\n", "\n\n", "\r\n\n", "\n\r\n" };
+        List<string> paragraphs = new List<string>();
+        
+        foreach (var separator in paragraphSeparators)
+        {
+            paragraphs = text.Split(new[] { separator }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => p.Trim())
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .ToList();
+            
+            if (paragraphs.Count > 2)
+            {
+                _logger.LogDebug("Found {ParagraphCount} paragraphs using separator", paragraphs.Count);
+                break;
+            }
+        }
+        
+        if (paragraphs.Count > 2)
+        {
+            var currentChunk = new StringBuilder();
+            
+            foreach (var paragraph in paragraphs)
+            {
+                if (paragraph.Length > maxChunkSize)
+                {
+                    if (currentChunk.Length >= minChunkSize)
+                    {
+                        chunks.Add(currentChunk.ToString().Trim());
+                        currentChunk.Clear();
+                    }
+                    chunks.Add(paragraph.Trim());
+                }
+                else if (currentChunk.Length + paragraph.Length + 2 > maxChunkSize && currentChunk.Length >= minChunkSize)
+                {
+                    chunks.Add(currentChunk.ToString().Trim());
+                    currentChunk.Clear();
+                    currentChunk.Append(paragraph);
+                }
+                else
+                {
+                    if (currentChunk.Length > 0) currentChunk.Append("\r\n\r\n");
+                    currentChunk.Append(paragraph);
+                }
+            }
+            
+            if (currentChunk.Length >= minChunkSize)
+            {
+                chunks.Add(currentChunk.ToString().Trim());
+            }
+            else if (currentChunk.Length > 0 && chunks.Count > 0)
+            {
+                chunks[chunks.Count - 1] += "\r\n\r\n" + currentChunk.ToString().Trim();
+            }
+            else if (currentChunk.Length > 0)
+            {
+                chunks.Add(currentChunk.ToString().Trim());
+            }
+            
+            _logger.LogInformation("Paragraph-based chunking created {ChunkCount} chunks. Average size: {AvgSize} chars", 
+                chunks.Count, chunks.Any() ? chunks.Average(c => c.Length) : 0);
+            
+            return chunks;
+        }
+        
+        // Strategy 3: Last resort - split by fixed size
+        _logger.LogWarning("No good paragraph structure found, using fixed-size chunking");
+        for (int i = 0; i < text.Length; i += maxChunkSize)
+        {
+            var chunkSize = Math.Min(maxChunkSize, text.Length - i);
+            chunks.Add(text.Substring(i, chunkSize).Trim());
+        }
+        
+        _logger.LogInformation("Fixed-size chunking created {ChunkCount} chunks", chunks.Count);
+        return chunks;
+    }
+
     private async Task<List<ContractChunk>> ChunkTextWithAIAsync(string text, Guid documentId)
     {
         var chunks = new List<ContractChunk>();
@@ -983,6 +1160,41 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
         {
             var chunkType = await ClassifyChunkTypeAsync(semanticChunk);
             
+            // Extract section information if available
+            var sectionInfo = ExtractSectionInfo(semanticChunk);
+            
+            // Build metadata dictionary with useful information
+            var metadata = new Dictionary<string, object>
+            {
+                ["chunkType"] = chunkType.ToString(),
+                ["charCount"] = semanticChunk.Length,
+                ["createdAt"] = DateTime.UtcNow.ToString("O"),
+                ["processingMethod"] = "ai_classification"
+            };
+            
+            // Add section information if detected
+            if (sectionInfo.HasValue)
+            {
+                metadata["sectionNumber"] = sectionInfo.Value.Number;
+                metadata["sectionTitle"] = sectionInfo.Value.Title;
+                metadata["hasSectionNumber"] = true;
+            }
+            else
+            {
+                metadata["hasSectionNumber"] = false;
+            }
+            
+            // Add word count for analytics
+            var wordCount = semanticChunk.Split(new[] { ' ', '\n', '\r', '\t' }, 
+                StringSplitOptions.RemoveEmptyEntries).Length;
+            metadata["wordCount"] = wordCount;
+            
+            // Add first few words as preview
+            var preview = semanticChunk.Length > 50 
+                ? semanticChunk.Substring(0, 50).Replace("\n", " ").Replace("\r", " ") + "..."
+                : semanticChunk.Replace("\n", " ").Replace("\r", " ");
+            metadata["preview"] = preview;
+            
             var chunk = new ContractChunk(
                 Guid.NewGuid(),
                 documentId,
@@ -991,40 +1203,33 @@ Respond with ONLY ONE WORD: Header, Clause, Term, Condition, Signature, or Other
                 currentPosition,
                 currentPosition + semanticChunk.Length,
                 chunkType,
-                new Dictionary<string, object>()
+                metadata
             );
             
             chunks.Add(chunk);
             currentPosition += semanticChunk.Length;
         }
         
+        _logger.LogInformation("Created {ChunkCount} chunks with metadata for document {DocumentId}", 
+            chunks.Count, documentId);
+        
         return chunks;
     }
-
-    private async Task<List<string>> CreateSemanticChunksAsync(string text)
+    
+    private (int Number, string Title)? ExtractSectionInfo(string chunkText)
     {
-        var paragraphs = text.Split(new[] { "\n\n", "\r\n\r\n" }, StringSplitOptions.RemoveEmptyEntries);
-        var chunks = new List<string>();
-        var currentChunk = new StringBuilder();
-        const int maxChunkSize = 1500;
-
-        foreach (var paragraph in paragraphs)
+        // Try to extract section number and title from the beginning of the chunk
+        // Pattern: "1. PROJECT SCOPE", "2. TIMELINE AND MILESTONES", etc.
+        var sectionPattern = @"^\s*(\d+)\.\s+([A-Z][A-Z\s]+?)(?:\r?\n|$)";
+        var match = Regex.Match(chunkText, sectionPattern, RegexOptions.Multiline);
+        
+        if (match.Success && int.TryParse(match.Groups[1].Value, out var sectionNumber))
         {
-            if (currentChunk.Length + paragraph.Length > maxChunkSize && currentChunk.Length > 0)
-            {
-                chunks.Add(currentChunk.ToString().Trim());
-                currentChunk.Clear();
-            }
-            
-            currentChunk.AppendLine(paragraph);
+            var sectionTitle = match.Groups[2].Value.Trim();
+            return (sectionNumber, sectionTitle);
         }
         
-        if (currentChunk.Length > 0)
-        {
-            chunks.Add(currentChunk.ToString().Trim());
-        }
-        
-        return chunks;
+        return null;
     }
 
     private async Task<(Stream Stream, string ContentType)> GetDocumentContentAsync(Guid documentId)
