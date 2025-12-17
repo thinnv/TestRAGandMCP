@@ -322,19 +322,25 @@ public class QdrantVectorService : IVectorService
     public async Task<SearchResult[]> SearchSimilarAsync(
         float[] queryVector,
         int maxResults = 10,
-        float minScore = 0.7f)
+        float minScore = 0.7f,
+        Dictionary<string, object>? filters = null)  // ?? ADD FILTERS PARAMETER
     {
         try
         {
-            _logger.LogDebug("Performing vector similarity search with {VectorDim} dimensions",
-                queryVector.Length);
+            _logger.LogDebug("Performing vector similarity search with {VectorDim} dimensions", queryVector.Length);
+            
+            // ?? Log filter info
+            if (filters != null && filters.Any())
+            {
+                _logger.LogInformation("Applying filters: {Filters}", JsonSerializer.Serialize(filters));
+            }
 
             // Try Qdrant first if available
             if (_qdrantAvailable)
             {
                 try
                 {
-                    var qdrantResults = await SearchInQdrantAsync(queryVector, maxResults, minScore);
+                    var qdrantResults = await SearchInQdrantAsync(queryVector, maxResults, minScore, filters);  // ?? PASS FILTERS
                     if (qdrantResults != null && qdrantResults.Length > 0)
                     {
                         _logger.LogInformation("? Found {Count} results from Qdrant", qdrantResults.Length);
@@ -349,7 +355,7 @@ public class QdrantVectorService : IVectorService
             }
 
             // Fallback to in-memory search
-            return await SearchInMemoryAsync(queryVector, maxResults, minScore);
+            return await SearchInMemoryAsync(queryVector, maxResults, minScore, filters);  // ?? PASS FILTERS
         }
         catch (Exception ex)
         {
@@ -361,18 +367,55 @@ public class QdrantVectorService : IVectorService
     private async Task<SearchResult[]?> SearchInQdrantAsync(
         float[] queryVector,
         int maxResults,
-        float minScore)
+        float minScore,
+        Dictionary<string, object>? filters = null)  // ?? ADD FILTERS PARAMETER
     {
         _logger.LogInformation("=== Starting Qdrant Search ===");
         _logger.LogDebug("Searching Qdrant for similar vectors with {Dimensions} dimensions", queryVector.Length);
 
         try
         {
+            // ?? BUILD FILTER CONDITIONS
+            Filter? searchFilter = null;
+            if (filters != null && filters.Any())
+            {
+                var mustConditions = new List<Condition>();
+                
+                foreach (var filter in filters)
+                {
+                    if (filter.Key.Equals("document_id", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var documentId = filter.Value.ToString();
+                        _logger.LogInformation("Filtering by document_id: {DocumentId}", documentId);
+                        
+                        mustConditions.Add(new Condition
+                        {
+                            Field = new FieldCondition
+                            {
+                                Key = "document_id",
+                                Match = new Match { Keyword = documentId }
+                            }
+                        });
+                    }
+                }
+                
+                if (mustConditions.Any())
+                {
+                    searchFilter = new Filter();
+                    foreach (var condition in mustConditions)
+                    {
+                        searchFilter.Must.Add(condition);
+                    }
+                }
+            }
+
+            // ?? PASS FILTER TO QDRANT
             var searchResults = await _qdrantClient.SearchAsync(
                 collectionName: _collectionName,
                 vector: queryVector,
                 limit: (ulong)maxResults,
                 scoreThreshold: minScore,
+                filter: searchFilter,  // ?? ADD FILTER HERE
                 payloadSelector: true
             ).ConfigureAwait(false);
 
@@ -432,7 +475,8 @@ public class QdrantVectorService : IVectorService
                             ["model"] = model,
                             ["match_type"] = "qdrant_vector_search",
                             ["vector_dimension"] = queryVector.Length,
-                            ["storage"] = "qdrant"
+                            ["storage"] = "qdrant",
+                            ["filtered_by_document"] = filters != null && filters.ContainsKey("document_id")  // ?? ADD FLAG
                         }
                     );
 
@@ -476,7 +520,8 @@ public class QdrantVectorService : IVectorService
     private async Task<SearchResult[]> SearchInMemoryAsync(
         float[] queryVector,
         int maxResults,
-        float minScore)
+        float minScore,
+        Dictionary<string, object>? filters = null)  // ?? ADD FILTERS PARAMETER
     {
         _logger.LogDebug("Searching in-memory store for similar vectors");
 
@@ -495,36 +540,57 @@ public class QdrantVectorService : IVectorService
                 $"stored embeddings dimension ({firstEmbedding.Vector.Length})");
         }
 
+        // ?? EXTRACT DOCUMENT ID FILTER
+        Guid? filterDocumentId = null;
+        if (filters != null && filters.ContainsKey("document_id"))
+        {
+            var docIdStr = filters["document_id"].ToString();
+            if (Guid.TryParse(docIdStr, out var parsedDocId))
+            {
+                filterDocumentId = parsedDocId;
+                _logger.LogInformation("Filtering in-memory search by document_id: {DocumentId}", filterDocumentId);
+            }
+        }
+
         // Perform cosine similarity search
-        var results = new List<(VectorEmbedding Embedding, float Score)>();
+        var results = new List<(VectorEmbedding Embedding, float Score, Guid DocumentId)>();
 
         foreach (var embedding in _embeddingStore.Values)
         {
             if (embedding.Vector.Length != queryVector.Length)
                 continue;
 
+            // ?? GET DOCUMENT ID FOR THIS EMBEDDING
+            var documentId = _chunkToDocumentMap.TryGetValue(embedding.ChunkId, out var docId)
+                ? docId
+                : embedding.DocumentId ?? Guid.Empty;
+
+            // ?? APPLY DOCUMENT ID FILTER
+            if (filterDocumentId.HasValue && documentId != filterDocumentId.Value)
+            {
+                continue;  // Skip this embedding if it doesn't match the filter
+            }
+
             var similarity = CalculateCosineSimilarity(queryVector, embedding.Vector);
 
             if (similarity >= minScore)
             {
-                results.Add((embedding, similarity));
+                results.Add((embedding, similarity, documentId));
             }
         }
 
         // Sort and limit results
         results = results.OrderByDescending(r => r.Score).Take(maxResults).ToList();
 
+        _logger.LogInformation("In-memory search: {TotalResults} results after filtering", results.Count);
+
         // Convert to SearchResult[]
         var searchResults = new List<SearchResult>();
-        foreach (var (embedding, score) in results)
+        foreach (var (embedding, score, documentId) in results)
         {
             var content = _chunkContentMap.TryGetValue(embedding.ChunkId, out var chunkContent)
                 ? chunkContent
                 : await GetChunkContentAsync(embedding.ChunkId);
-
-            var documentId = _chunkToDocumentMap.TryGetValue(embedding.ChunkId, out var docId)
-                ? docId
-                : embedding.ChunkId;
 
             var metadata = await FetchDocumentMetadataAsync(documentId);
 
@@ -541,7 +607,8 @@ public class QdrantVectorService : IVectorService
                     ["match_type"] = "cosine_similarity",
                     ["embedding_id"] = embedding.Id,
                     ["vector_dimension"] = embedding.Vector.Length,
-                    ["storage"] = "in-memory"
+                    ["storage"] = "in-memory",
+                    ["filtered_by_document"] = filterDocumentId.HasValue  // ?? ADD FLAG
                 }
             ));
         }
@@ -566,7 +633,8 @@ public class QdrantVectorService : IVectorService
 
             _logger.LogDebug("Generated query embedding with {Dimension} dimensions", queryEmbedding.Length);
 
-            return await SearchSimilarAsync(queryEmbedding, request.MaxResults, request.MinScore);
+            // ?? PASS FILTERS TO SearchSimilarAsync
+            return await SearchSimilarAsync(queryEmbedding, request.MaxResults, request.MinScore, request.Filters);
         }
         catch (Exception ex)
         {

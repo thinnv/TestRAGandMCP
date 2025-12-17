@@ -138,12 +138,20 @@ public class QueryService : IQueryService
             
             _logger.LogDebug("Calling VectorService at {Url}", vectorServiceUrl);
             
+            // ?? INCLUDE FILTERS IN REQUEST
             var vectorRequest = new
             {
                 QueryVector = queryEmbedding,
                 MaxResults = request.MaxResults,
-                MinScore = request.MinScore
+                MinScore = request.MinScore,
+                Filters = request.Filters  // ?? PASS FILTERS TO VECTOR SERVICE
             };
+            
+            if (request.Filters != null && request.Filters.Any())
+            {
+                _logger.LogInformation("Passing filters to VectorService: {Filters}", 
+                    JsonSerializer.Serialize(request.Filters));
+            }
             
             var requestBody = JsonSerializer.Serialize(vectorRequest);
             var content = new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
@@ -205,39 +213,53 @@ Result #{i + 1}:
 ");
             }
 
+            // ?? ENHANCED PROMPT - Focus on explaining relevance to the specific query
             var enhancementPrompt = $@"
-You are an expert contract analysis assistant. Analyze the relevance of search results for the given query.
+You are an expert contract analysis assistant. Analyze how each search result answers the user's specific question.
 
-SEARCH QUERY: {query}
+USER QUESTION: {query}
 
 TOP SEARCH RESULTS:
 {resultsContext}
 
-For each result, provide:
-1. Relevance explanation
-2. Key contract terms
-3. Business impact (Low/Medium/High)
-4. Recommendation
+For EACH result, provide a detailed analysis:
 
-Return ONLY a JSON array:
+1. **Relevance Explanation**: HOW does this chunk answer the user's question? Be specific.
+2. **Key Information**: What SPECIFIC information from this chunk addresses the query?
+3. **Business Impact**: What's the practical significance? (Low/Medium/High)
+4. **Recommendation**: What should the user focus on or what follow-up questions should they ask?
+5. **Answer Quality**: How well does this chunk answer the question? (Poor/Partial/Good/Excellent)
+
+ANALYSIS GUIDELINES:
+- For termination/layoff questions: Focus on severance, notice periods, benefits continuation, stock vesting
+- For compensation questions: Focus on base salary, bonuses, total comp
+- For benefits questions: Focus on health, retirement, PTO, perks
+- For contract value questions: Extract total amounts, payment breakdowns, and explain the structure
+- Always explain the ""why"" - don't just list facts, explain their significance
+
+Return ONLY a JSON array (no markdown, no explanations):
 [
   {{
     ""resultIndex"": 0,
     ""relevanceScore"": 0.95,
-    ""relevanceReason"": ""Contains exact payment terms"",
-    ""keyTerms"": [""payment"", ""net 30""],
+    ""relevanceReason"": ""This section directly addresses what happens when employment terminates, including: [specific details]"",
+    ""keyInformation"": [""specific detail 1"", ""specific detail 2""],
     ""businessImpact"": ""High"",
-    ""recommendation"": ""Review payment terms""
+    ""recommendation"": ""Review the severance calculation: [specific formula]. Consider asking about..."",
+    ""answerQuality"": ""Good""
   }}
 ]
 
-Analyze only the top {resultsToAnalyze} results. Return valid JSON only.";
+Analyze only the top {resultsToAnalyze} results. Return valid JSON only. Be specific and actionable.";
 
             var options = new LLMGenerationOptions
             {
                 Temperature = 0.3f,
-                MaxTokens = 2000
+                MaxTokens = 3000  // ?? Increased for more detailed explanations
             };
+
+            _logger.LogInformation("Sending {Count} results to LLM for enhancement with query: {Query}", 
+                resultsToAnalyze, query);
 
             var response = await llmProvider.GenerateTextAsync(enhancementPrompt, options);
 
@@ -251,10 +273,12 @@ Analyze only the top {resultsToAnalyze} results. Return valid JSON only.";
 
             if (enhancements == null || enhancements.Count == 0)
             {
-                _logger.LogWarning("Failed to parse AI enhancements");
+                _logger.LogWarning("Failed to parse AI enhancements. Response: {Response}", 
+                    response.Length > 500 ? response.Substring(0, 500) + "..." : response);
                 return enrichedResults;
             }
 
+            // ?? Apply enhancements with detailed information
             for (int i = 0; i < enrichedResults.Length && i < enhancements.Count; i++)
             {
                 var enhancement = enhancements[i];
@@ -263,12 +287,17 @@ Analyze only the top {resultsToAnalyze} results. Return valid JSON only.";
                 result.Highlights["ai_enhanced"] = true;
                 result.Highlights["ai_relevance_score"] = enhancement.RelevanceScore;
                 result.Highlights["ai_relevance_reason"] = enhancement.RelevanceReason ?? "Not provided";
-                result.Highlights["ai_key_terms"] = enhancement.KeyTerms ?? new List<string>();
+                result.Highlights["ai_key_information"] = enhancement.KeyInformation ?? new List<string>();  // ?? NEW
                 result.Highlights["ai_business_impact"] = enhancement.BusinessImpact ?? "Unknown";
                 result.Highlights["ai_recommendation"] = enhancement.Recommendation ?? "None";
+                result.Highlights["ai_answer_quality"] = enhancement.AnswerQuality ?? "Unknown";  // ?? NEW
+                
+                _logger.LogDebug("Enhanced result {Index}: Quality={Quality}, Impact={Impact}, Reason={Reason}",
+                    i, enhancement.AnswerQuality, enhancement.BusinessImpact, 
+                    enhancement.RelevanceReason?.Substring(0, Math.Min(100, enhancement.RelevanceReason?.Length ?? 0)));
             }
 
-            _logger.LogInformation("Enhanced {Count} search results with AI", enhancements.Count);
+            _logger.LogInformation("Enhanced {Count} search results with AI analysis", enhancements.Count);
             return enrichedResults;
         }
         catch (Exception ex)
@@ -429,9 +458,10 @@ Analyze only the top {resultsToAnalyze} results. Return valid JSON only.";
         public int ResultIndex { get; set; }
         public float RelevanceScore { get; set; }
         public string? RelevanceReason { get; set; }
-        public List<string>? KeyTerms { get; set; }
+        public List<string>? KeyInformation { get; set; }  // ?? NEW - Specific facts from the chunk
         public string? BusinessImpact { get; set; }
         public string? Recommendation { get; set; }
+        public string? AnswerQuality { get; set; }  // ?? NEW - How well it answers the question
     }
 
     private async Task<List<string>> RetrieveDocumentContentsAsync(List<Guid> documentIds)
@@ -482,9 +512,7 @@ Analyze only the top {resultsToAnalyze} results. Return valid JSON only.";
                         continue;
                     }
 
-                    _logger.LogDebug("Successfully deserialized document: {FileName}, Status: {Status}", 
-                        document.FileName, document.Status);
-
+                    _logger.LogDebug("Successfully deserialized document: {FileName}, Status: {Status}");
                     // For now, we'll use the DocumentParser service to get the parsed chunks
                     // In a real implementation, you could call /content endpoint and parse the binary content
                     var parserServiceUrl = GetServiceUrl("DocumentParser");

@@ -73,7 +73,8 @@ public interface IVectorService
     Task<SearchResult[]> SearchSimilarAsync(
         float[] queryVector, 
         int maxResults = 10, 
-        float minScore = 0.7f);
+        float minScore = 0.7f,
+        Dictionary<string, object>? filters = null);  // ?? ADD FILTERS PARAMETER
     
     Task<SearchResult[]> SearchAsync(SearchRequest request);
     Task<bool> DeleteDocumentEmbeddingsAsync(Guid documentId);

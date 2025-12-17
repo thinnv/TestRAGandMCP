@@ -121,10 +121,12 @@ public class VectorController : ControllerBase
 
         try
         {
+            // ?? PASS FILTERS TO SearchSimilarAsync
             var results = await _vectorService.SearchSimilarAsync(
                 request.QueryVector!, 
                 request.MaxResults, 
-                request.MinScore);
+                request.MinScore,
+                request.Filters);  // ?? ADD FILTERS PARAMETER
             
             return Ok(results);
         }
@@ -244,8 +246,10 @@ public class VectorController : ControllerBase
     }
 }
 
+// ?? UPDATE VectorSearchRequest to include Filters
 public record VectorSearchRequest(
     float[]? QueryVector,
     int MaxResults = 10,
-    float MinScore = 0.7f
+    float MinScore = 0.7f,
+    Dictionary<string, object>? Filters = null  // ?? ADD FILTERS PARAMETER
 );

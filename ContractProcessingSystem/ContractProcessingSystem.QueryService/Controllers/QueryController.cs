@@ -1,4 +1,5 @@
 using ContractProcessingSystem.QueryService.Services;
+using ContractProcessingSystem.Shared.AI;  // ?? ADD THIS
 using Microsoft.AspNetCore.Mvc;
 
 namespace ContractProcessingSystem.QueryService.Controllers;
@@ -231,6 +232,120 @@ public class QueryController : ControllerBase
             Note = "Service URLs are read from appsettings.json 'Services' section with fallback to defaults"
         });
     }
+
+    /// <summary>
+    /// Test AI enhancement functionality with diagnostic information
+    /// </summary>
+    [HttpPost("test-enhancement")]
+    [ProducesResponseType(200)]
+    [ProducesResponseType(500)]
+    public async Task<ActionResult> TestAIEnhancement([FromBody] TestEnhancementRequest request)
+    {
+        var llmProviderFactory = HttpContext.RequestServices.GetRequiredService<ILLMProviderFactory>();
+        
+        try
+        {
+            var llmProvider = llmProviderFactory.GetDefaultProvider();
+            
+            var diagnostics = new
+            {
+                ProviderInfo = new
+                {
+                    llmProvider.ProviderName,
+                    llmProvider.IsAvailable,
+                    llmProvider.SupportsChat,
+                    llmProvider.SupportsEmbeddings
+                },
+                TestQuery = request.Query,
+                TestContent = request.SampleContent
+            };
+
+            if (!llmProvider.IsAvailable)
+            {
+                return Ok(new
+                {
+                    Success = false,
+                    Message = "LLM Provider is not available",
+                    Diagnostics = diagnostics,
+                    Recommendation = "Check Gemini API key configuration in appsettings.json"
+                });
+            }
+
+            if (!llmProvider.SupportsChat)
+            {
+                return Ok(new
+                {
+                    Success = false,
+                    Message = "LLM Provider does not support chat",
+                    Diagnostics = diagnostics,
+                    Recommendation = "Configured provider must support chat for AI enhancement"
+                });
+            }
+
+            // Test actual AI call
+            var testPrompt = $@"
+You are testing AI enhancement. Analyze this search result for the query: ""{request.Query}""
+
+Sample Content: {request.SampleContent}
+
+Return a JSON object with:
+{{
+  ""resultIndex"": 0,
+  ""relevanceScore"": 0.95,
+  ""relevanceReason"": ""Brief explanation"",
+  ""keyInformation"": [""fact 1"", ""fact 2""],
+  ""answerQuality"": ""Good""
+}}";
+
+            var options = new LLMGenerationOptions
+            {
+                Temperature = 0.3f,
+                MaxTokens = 1000
+            };
+
+            var startTime = DateTime.UtcNow;
+            var response = await llmProvider.GenerateTextAsync(testPrompt, options);
+            var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
+
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                return Ok(new
+                {
+                    Success = false,
+                    Message = "LLM returned empty response",
+                    Diagnostics = diagnostics,
+                    Duration = $"{duration}ms",
+                    Recommendation = "Check Gemini API key, network connectivity, or API quota"
+                });
+            }
+
+            return Ok(new
+            {
+                Success = true,
+                Message = "AI enhancement is working correctly",
+                Diagnostics = diagnostics,
+                TestResponse = new
+                {
+                    RawResponse = response,
+                    ResponseLength = response.Length,
+                    Duration = $"{duration}ms"
+                },
+                Recommendation = "AI enhancement should be working in search results. Check search response for 'ai_enhanced' field."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error testing AI enhancement");
+            return StatusCode(500, new
+            {
+                Success = false,
+                Message = "Error testing AI enhancement",
+                Error = ex.Message,
+                StackTrace = ex.StackTrace,
+                Recommendation = "Check logs for detailed error information"
+            });
+        }
+    }
 }
 
 /// <summary>
@@ -241,4 +356,12 @@ public record HybridSearchRequest(
     Dictionary<string, object>? Filters = null,
     int MaxResults = 10,
     float MinScore = 0.7f
+);
+
+/// <summary>
+/// Request model for testing AI enhancement
+/// </summary>
+public record TestEnhancementRequest(
+    string Query,
+    string SampleContent
 );
